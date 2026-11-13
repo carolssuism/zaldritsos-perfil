@@ -123,3 +123,18 @@
   .zp-tip, .zp-tip.zp-show { clip-path: none; transition: opacity .12s; }
   .zp-ach .zp-ic, .zp-rel-foto img, .zp-tr-foto img { transition: none; }
 }
+
+/* ===== blindagem contra os estilos de botões e campos do tema do fórum =====
+   (o prefixo #z-profile dá prioridade a estas regras sobre as regras genéricas do tema) */
+#z-profile .zp-view .zp-ach, #z-profile .zp-view .zp-ach:hover, #z-profile .zp-view .zp-ach:focus, #z-profile .zp-view .zp-ach:active {
+  background: none; border: 0; box-shadow: none; outline: none; padding: 0; border-radius: 0; font-size: 0; }
+#z-profile .zp-view .zp-st button, #z-profile .zp-view .zp-st button:hover, #z-profile .zp-view .zp-st button:focus {
+  background: none; box-shadow: none; border-top: 0; border-left: 0; border-right: 0; border-radius: 0; padding: 4px 0 6px;
+  font: 600 10px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+#z-profile .zp-view .zp-pc, #z-profile .zp-view .zp-pc:hover, #z-profile .zp-view .zp-pc:focus {
+  background: var(--zp-painel); box-shadow: none; border-radius: 0; padding: 5px 9px 5px 6px;
+  font: 600 9px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+#z-profile .zp-view .zp-tools select, #z-profile .zp-view .zp-tools input {
+  background-color: var(--zp-campo); box-shadow: none; border-radius: 0; font: 11px Montserrat, Arial, sans-serif; }
+#z-profile .zp-view .zp-tools input { padding: 8px 10px; }
+#z-profile .zp-view .zp-tools select { padding: 8px 30px 8px 10px; }

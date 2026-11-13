@@ -285,51 +285,26 @@
   }
 
   /* ====== botão "?" ao lado do título de cada aba: ensina a preencher o campo ====== */
-  const eAdmin = () => !!(window._userdata && Number(window._userdata.user_level) === 1);
   const cod = (t) => el('code', null, t);
   const par = (...partes) => { const p = el('p'); partes.forEach((x) => p.append(typeof x === 'string' ? document.createTextNode(x) : x)); return p; };
-  const linkCatalogo = () => (CFG.catalogoUrl.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/) || []).slice(1);
+  const corGrupo = () => { const z = document.getElementById('z-profile'); return z ? getComputedStyle(z).getPropertyValue('--group-color').trim() : ''; };
 
+  // Conquistas não tem "?": o próprio editor (lista de escolha) já se explica
   const AJUDAS = {
     relacoes: async () => [
       el('h4', null, 'Como adicionar uma relação'),
       par('Escreva uma linha por vínculo, neste formato:'),
       cod('FOTO | NOME | TIPO DE RELAÇÃO'),
-      par('A foto é opcional: se deixar vazia, aparece um espaço reservado. Exemplos:'),
-      cod('https://…/foto.png | Lyanna Seabra | Irmã mais nova'),
-      cod(' | Ser Rodrik Dayne | Mentor e protetor'),
-      par('Para adicionar outro vínculo, aperte Enter e escreva na linha de baixo. Linhas fora do formato são ignoradas.')
+      par('Para adicionar outro vínculo, use ', el('b', null, 'Shift + Enter'), ' e escreva na linha de baixo. Apertar só Enter salva o campo.')
     ],
     tracker: async () => [
       el('h4', null, 'Como adicionar uma trama'),
       par('Escreva uma linha por trama, neste formato:'),
       cod('FOTO | TÍTULO | DESCRIÇÃO | PERSONAGENS | STATUS | LINK DO TÓPICO'),
-      par('A foto e o link do tópico são opcionais. Separe os personagens por vírgula ou pela palavra "e". O status pode ser ', el('b', null, 'Em andamento'), ' ou ', el('b', null, 'Finalizado'), ' (qualquer outro aparece em cinza). Exemplo:'),
-      cod('https://…/capa.png | Sussurros no Boticário | Uma encomenda estranha. | Mestre Alaric e Elara | Em andamento | https://…/t12-topico'),
-      par('Para adicionar outra trama, aperte Enter e escreva na linha de baixo. Linhas fora do formato são ignoradas.')
-    ],
-    conquistas: async () => {
-      const cat = await catalogo();
-      const ids = Object.keys(cat).sort((a, b) => ORDEM.indexOf(raridade(cat[a].raridade)) - ORDEM.indexOf(raridade(cat[b].raridade)) || String(cat[a].nome).localeCompare(String(cat[b].nome), 'pt-BR'));
-      const nos = [
-        el('h4', null, 'Como dar uma conquista'),
-        par('Escreva uma linha por conquista, neste formato:'),
-        cod('ID | DATA'),
-        par('A data é opcional. Exemplo:'),
-        cod('lingua-afiada | 04/10/2025'),
-        par('O ID é o código da conquista no catálogo. Conquistas disponíveis:')
-      ];
-      if (ids.length) {
-        const ul = el('ul');
-        ids.forEach((id) => { const li = el('li'); li.append(cod(id), document.createTextNode(' ' + (cat[id].nome || '') + ' · ' + NOME_R[raridade(cat[id].raridade)])); ul.append(li); });
-        nos.push(ul);
-      } else nos.push(par('(o catálogo não pôde ser carregado agora)'));
-      const l = linkCatalogo();
-      if (eAdmin() && l.length) nos.push(par('Para cadastrar uma conquista nova, edite o catálogo: ', Object.assign(el('a', null, 'abrir o catálogo no GitHub'), { href: 'https://github.com/' + l[0] + '/' + l[1] + '/edit/' + l[2] + '/' + l[3], target: '_blank', rel: 'noopener' })));
-      return nos;
-    }
+      par('Separe os personagens por vírgula ou pela palavra "e". O status pode ser ', el('b', null, 'Em andamento'), ' ou ', el('b', null, 'Finalizado'), ' (outro valor aparece em cinza).'),
+      par('Para adicionar outra trama, use ', el('b', null, 'Shift + Enter'), ' e escreva na linha de baixo. Apertar só Enter salva o campo.')
+    ]
   };
-
   let aj = null, ajBotao = null, ajTimer = 0, ajFixo = false;
   function criarAjuda() {
     if (aj) return aj;
@@ -345,6 +320,7 @@
     clearTimeout(ajTimer); criarAjuda();
     if (ajBotao && ajBotao !== botao) ajBotao.setAttribute('aria-expanded', 'false');
     ajBotao = botao;
+    aj.style.setProperty('--group-color', corGrupo()); // o balão fica fora do perfil: leva a cor do grupo junto
     aj.textContent = ''; aj.append(...(await AJUDAS[chave]()));
     if (ajBotao !== botao) return;
     const b = botao.getBoundingClientRect(), w = aj.offsetWidth, h = aj.offsetHeight;
@@ -359,6 +335,7 @@
     if (atraso) ajTimer = setTimeout(f, 250); else f();
   }
   function instalarAjuda(secao, chave) {
+    if (!AJUDAS[chave]) return;
     const h2 = secao.querySelector('.zup-tab-heading h2');
     if (!h2 || h2.querySelector('.zp-help')) return;
     const rotulo = 'Como preencher: ' + h2.textContent.trim();

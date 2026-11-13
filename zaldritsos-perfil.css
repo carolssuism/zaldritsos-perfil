@@ -2,7 +2,7 @@
    Usa as cores globais do tema (--cor-painel, --cor-texto...) e cai para valores padrão se não existirem. */
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Pirata+One&display=swap");
 
-.zp, .zp-tip, .zp-ajuda {
+.zp, .zp-tip, .zp-ajuda, .zp-pick {
   --zp-painel: var(--cor-painel, #090a0c);
   --zp-campo: var(--cor-campo, #101013);
   --zp-superficie: var(--cor-superficie, #1c191b);
@@ -14,7 +14,7 @@
   --zp-destaque: var(--cor-destaque, #8a1a22);
   --zp-destaque-claro: var(--cor-destaque-claro, #cc5258);
   --zp-destaque-fundo: var(--cor-destaque-fundo, #36060c);
-  --zp-solstice: var(--cor-solstice, #e1bc66);
+  --zp-solstice: var(--group-color, var(--cor-destaque-claro, #e1bc66)); /* cor do grupo do dono do perfil */
   --zp-linha: color-mix(in srgb, var(--zp-borda) 24%, transparent);
   font-family: Montserrat, Arial, sans-serif;
 }
@@ -43,18 +43,11 @@
 
 /* ===== Tracker ===== */
 .zp-tools { flex: none; display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; justify-content: space-between; margin: 0 calc(var(--zp-recuo, 28px) * -1); padding: 14px var(--zp-recuo, 28px) 14px; border-bottom: 1px solid var(--zp-linha); }
-.zp-st { display: flex; gap: 16px; }
-.zp-st button { font: 600 10px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; background: none; border: 0; border-bottom: 1px solid transparent; color: var(--zp-discreto); padding: 4px 0 6px; cursor: pointer; }
-.zp-st button:hover { color: var(--zp-suave); }
-.zp-st button[aria-pressed="true"] { color: var(--zp-solstice); border-bottom-color: var(--zp-solstice); }
 .zp-dir { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .zp-tools select, .zp-tools input { background: var(--zp-campo); color: var(--zp-texto); border: 1px solid var(--zp-linha); padding: 8px 10px; font: 11px Montserrat, Arial, sans-serif; max-width: 100%; }
-.zp-tools select { appearance: none; -webkit-appearance: none; width: 210px; padding-right: 30px; cursor: pointer; color: var(--zp-suave);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%2394898c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center; background-size: 13px; }
+.zp-tools select { appearance: none; -webkit-appearance: none; width: 210px; padding-right: 30px; cursor: pointer; color: var(--zp-suave); }
 .zp-tools select option { background: var(--zp-painel); color: var(--zp-texto); }
 .zp-tools input { width: 200px; }
-.zp-tools select:focus, .zp-tools input:focus { outline: none; border-color: var(--zp-solstice); }
 .zp-tr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
 .zp-tr { position: relative; display: grid; grid-template-columns: 116px 1fr; gap: 18px; padding: 16px 18px 16px 20px; background: var(--zp-campo); border: 1px solid var(--zp-linha); transition: border-color .25s, background .25s; }
 .zp-tr:hover, .zp-tr:focus-within { background: var(--zp-superficie); border-color: color-mix(in srgb, var(--zp-borda) 45%, transparent); }
@@ -69,7 +62,7 @@
 .zp-tr-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .zp-tr-status { font: 600 9px/1 Montserrat, Arial, sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: var(--zp-discreto); }
 .zp-and .zp-tr-status { color: var(--zp-solstice); }
-.zp-fin .zp-tr-status { color: var(--zp-destaque-claro); }
+.zp-fin .zp-tr-status { color: var(--zp-discreto); }
 .zp-tr-titulo { margin: 0; font: 400 23px/1.1 "Pirata One", Georgia, serif; letter-spacing: .3px; overflow-wrap: anywhere; transition: color .25s; }
 .zp-tr-titulo a { color: inherit; text-decoration: none; }
 .zp-tr-titulo a::after { content: ""; position: absolute; inset: 0; }
@@ -95,20 +88,12 @@
 @keyframes zp-vidro { 0%, 55% { transform: translateX(0); } 100% { transform: translateX(190px); } }
 
 /* balão (abre do meio para as beiradas, como um livro) */
-.zp-tip { position: fixed; z-index: 99999; width: 280px; max-width: calc(100vw - 24px); padding: 14px 16px 15px; background: #000; border: 1px solid var(--zp-linha); box-shadow: 0 10px 30px rgba(0,0,0,.6); pointer-events: none; opacity: 0; visibility: hidden; clip-path: inset(0 50% 0 50%); transition: opacity .12s, clip-path .12s, visibility 0s .12s; }
-.zp-tip.zp-show { opacity: 1; visibility: visible; clip-path: inset(-40px); transition: opacity .2s ease-out, clip-path .5s cubic-bezier(.22,.8,.25,1), visibility 0s; }
 .zp-tip .zp-rar { display: block; font: 600 9px/1 Montserrat, Arial, sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: var(--c, var(--zp-discreto)); }
 .zp-tip h4 { margin: 8px 0 0; font: 400 22px/1.1 "Pirata One", Georgia, serif; color: var(--zp-texto); }
 .zp-tip p { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--zp-suave); }
 .zp-tip .zp-dt { display: block; margin-top: 10px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--zp-discreto); }
 
 /* ===== ajudante na página de edição do perfil (escolher conquista) ===== */
-.zp-pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; font-family: Montserrat, Arial, sans-serif; }
-.zp-pick select, .zp-pick input, .zp-pick button { font: 11px Montserrat, Arial, sans-serif; background: #101013; color: #dcded9; border: 1px solid rgba(150,148,144,.3); padding: 9px 10px; }
-.zp-pick select { flex: 1 1 260px; min-width: 0; cursor: pointer; }
-.zp-pick input { width: 130px; }
-.zp-pick button { font-weight: 600; letter-spacing: 1px; text-transform: uppercase; font-size: 10px; color: #e1bc66; border-color: #e1bc66; cursor: pointer; }
-.zp-pick button:hover { background: #1c191b; }
 
 @media (max-width: 560px) {
   .zp-view { --zp-recuo: 16px; }
@@ -129,9 +114,6 @@
    (o prefixo #z-profile dá prioridade a estas regras sobre as regras genéricas do tema) */
 #z-profile .zp-view .zp-ach, #z-profile .zp-view .zp-ach:hover, #z-profile .zp-view .zp-ach:focus, #z-profile .zp-view .zp-ach:active {
   background: none; border: 0; box-shadow: none; outline: none; padding: 0; border-radius: 0; font-size: 0; }
-#z-profile .zp-view .zp-st button, #z-profile .zp-view .zp-st button:hover, #z-profile .zp-view .zp-st button:focus {
-  background: none; box-shadow: none; border-top: 0; border-left: 0; border-right: 0; border-radius: 0; padding: 4px 0 6px;
-  font: 600 10px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
 #z-profile .zp-view .zp-pc, #z-profile .zp-view .zp-pc:hover, #z-profile .zp-view .zp-pc:focus {
   background: var(--zp-painel); box-shadow: none; border-radius: 0; padding: 5px 9px 5px 6px;
   font: 600 9px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
@@ -140,21 +122,59 @@
 #z-profile .zp-view .zp-tools input { padding: 8px 10px; }
 #z-profile .zp-view .zp-tools select { padding: 8px 30px 8px 10px; }
 /* ===== botão "?" (ajuda) ao lado do título de cada aba ===== */
-#z-profile .zp-help { display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 12px; padding: 0; position: relative; top: -3px; vertical-align: middle;
-  border: 1px solid #94898c; border-radius: 50% !important; background: transparent; box-shadow: none; color: #bfb1b4; cursor: help;
-  font: 600 11px/1 Montserrat, Arial, sans-serif; letter-spacing: 0; text-transform: none; }
-#z-profile .zp-help:hover, #z-profile .zp-help:focus-visible, #z-profile .zp-help[aria-expanded="true"] { background: transparent; color: #e1bc66; border-color: #e1bc66; outline: none; }
-.zp-ajuda { position: fixed; z-index: 99999; width: 340px; max-width: calc(100vw - 24px); max-height: min(70vh, 520px); overflow-y: auto; padding: 14px 16px 16px;
-  background: #000; border: 1px solid var(--zp-linha); box-shadow: 0 10px 30px rgba(0,0,0,.6); color: var(--zp-suave); font: 12px/1.65 Montserrat, Arial, sans-serif;
+@media (prefers-reduced-motion: reduce) { .zp-ajuda, .zp-ajuda.zp-ajuda-on { transition: none; } }
+/* ================= ajustes finais =================
+   Tudo que era dourado fixo agora segue --zp-solstice (= cor do grupo do dono do perfil). */
+
+/* balões (conquistas e ajuda): escuro do Zaldritsos, translúcido, com desfoque */
+.zp-tip, .zp-ajuda { position: fixed; z-index: 99999; max-width: calc(100vw - 24px);
+  background: color-mix(in srgb, var(--zp-superficie) 90%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid color-mix(in srgb, var(--zp-borda) 30%, transparent); box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
+.zp-tip { width: 280px; padding: 14px 16px 15px; pointer-events: none; opacity: 0; visibility: hidden; clip-path: inset(0 50% 0 50%); transition: opacity .12s, clip-path .12s, visibility 0s .12s; }
+.zp-tip.zp-show { opacity: 1; visibility: visible; clip-path: inset(-40px); transition: opacity .2s ease-out, clip-path .5s cubic-bezier(.22,.8,.25,1), visibility 0s; }
+.zp-ajuda { width: 320px; max-height: min(70vh, 520px); overflow-y: auto; padding: 14px 16px 16px; color: var(--zp-suave); font: 12px/1.65 Montserrat, Arial, sans-serif;
   opacity: 0; visibility: hidden; transition: opacity .15s, visibility 0s .15s; scrollbar-width: thin; scrollbar-color: var(--zp-placeholder) transparent; }
 .zp-ajuda.zp-ajuda-on { opacity: 1; visibility: visible; transition: opacity .15s, visibility 0s; }
 .zp-ajuda h4 { margin: 0 0 6px; font: 400 21px/1.1 "Pirata One", Georgia, serif; color: var(--zp-texto); }
 .zp-ajuda p { margin: 9px 0 0; }
-.zp-ajuda b { color: var(--zp-solstice); font-weight: 600; }
-.zp-ajuda a { color: var(--zp-solstice); }
-.zp-ajuda code { display: block; margin: 6px 0 0; padding: 7px 9px; background: var(--zp-campo); border: 1px solid var(--zp-linha); color: var(--zp-solstice);
-  font: 11px/1.5 Consolas, "Courier New", monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-.zp-ajuda ul { list-style: none; margin: 8px 0 0; padding: 0; }
-.zp-ajuda li { margin: 0 0 7px; line-height: 1.5; }
-.zp-ajuda li code { display: inline-block; margin: 0 4px 0 0; padding: 1px 6px; }
-@media (prefers-reduced-motion: reduce) { .zp-ajuda, .zp-ajuda.zp-ajuda-on { transition: none; } }
+.zp-ajuda b { color: var(--zp-texto); font-weight: 600; }
+.zp-ajuda code { display: block; margin: 6px 0 0; padding: 7px 9px; background: color-mix(in srgb, var(--zp-campo) 70%, transparent); border: 1px solid var(--zp-linha);
+  color: var(--zp-texto); font: 11px/1.5 Consolas, "Courier New", monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* botão "?" */
+#z-profile .zp-help { display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 12px; padding: 0; position: relative; top: -3px; vertical-align: middle;
+  border: 1px solid var(--cor-texto-discreto, #94898c); border-radius: 50% !important; background: transparent; box-shadow: none; color: var(--cor-texto-suave, #bfb1b4); cursor: help;
+  font: 600 11px/1 Montserrat, Arial, sans-serif; letter-spacing: 0; text-transform: none; }
+#z-profile .zp-help:hover, #z-profile .zp-help:focus-visible, #z-profile .zp-help[aria-expanded="true"] { background: transparent; color: var(--group-color, var(--cor-destaque-claro, #e1bc66)); border-color: var(--group-color, var(--cor-destaque-claro, #e1bc66)); outline: none; }
+
+/* filtros do Tracker: botões com borda, no mesmo estilo das etiquetas de personagem */
+.zp-st { display: flex; flex-wrap: wrap; gap: 6px; }
+#z-profile .zp-view .zp-st button, #z-profile .zp-view .zp-st button:hover, #z-profile .zp-view .zp-st button:focus {
+  margin: 0; padding: 8px 12px; background: var(--zp-campo); border: 1px solid var(--zp-linha); border-radius: 0; box-shadow: none; outline: none;
+  color: var(--zp-discreto); font: 600 10px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+#z-profile .zp-view .zp-st button:hover { color: var(--zp-suave); border-color: color-mix(in srgb, var(--zp-borda) 45%, transparent); }
+#z-profile .zp-view .zp-st button[aria-pressed="true"] { color: var(--zp-solstice); border-color: var(--zp-solstice); }
+
+/* busca e seletor: sem borda colorida ao focar */
+#z-profile .zp-view .zp-tools select:focus, #z-profile .zp-view .zp-tools input:focus {
+  border-color: color-mix(in srgb, var(--zp-borda) 50%, transparent) !important; box-shadow: none !important; outline: none !important; }
+
+/* textos (o tema redefine fonte de h3 e de botões) */
+#z-profile .zp-view .zp-rel-nome { margin: 0; font: 700 13px/1.25 Montserrat, Arial, sans-serif !important; letter-spacing: .5px; text-transform: uppercase; }
+#z-profile .zp-view .zp-rel-tipo { font-size: 10px !important; line-height: 1.5; }
+#z-profile .zp-view .zp-tr-titulo { margin: 0; font: 400 27px/1.1 "Pirata One", Georgia, serif !important; text-transform: lowercase !important; letter-spacing: .3px; }
+#z-profile .zp-view .zp-tr-desc { font-size: 12px !important; line-height: 1.7; }
+#z-profile .zp-view .zp-tr-pers { gap: 6px; }
+#z-profile .zp-view .zp-pc { margin: 0; }
+
+/* lista de escolha no editor de Conquistas: uma linha só, compacta */
+.zp-pick { display: grid; grid-template-columns: minmax(0, 1fr) 140px auto; gap: 8px; align-items: stretch; margin: 0 0 12px; }
+.zp-pick select, .zp-pick input, .zp-pick button,
+#z-profile .zp-pick select, #z-profile .zp-pick input, #z-profile .zp-pick button {
+  width: auto !important; min-width: 0; height: 38px; margin: 0 !important; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--zp-linha); border-radius: 0 !important;
+  background: var(--zp-campo); box-shadow: none; color: var(--zp-texto); font: 12px Montserrat, Arial, sans-serif !important; }
+.zp-pick button, #z-profile .zp-pick button { padding: 0 18px; background: transparent; color: var(--zp-suave); font: 600 10px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+.zp-pick button:hover, .zp-pick button:focus-visible, #z-profile .zp-pick button:hover { background: transparent; color: var(--zp-solstice); border-color: var(--zp-solstice); outline: none; }
+.zp-pick select:focus, .zp-pick input:focus, #z-profile .zp-pick select:focus, #z-profile .zp-pick input:focus { border-color: color-mix(in srgb, var(--zp-borda) 50%, transparent); outline: none; }
+@media (max-width: 560px) { .zp-pick { grid-template-columns: 1fr 1fr; } .zp-pick select { grid-column: 1 / -1; } }

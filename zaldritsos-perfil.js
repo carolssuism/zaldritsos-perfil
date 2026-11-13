@@ -42,11 +42,14 @@
     const nativo = document.getElementById('z-profile-native');
     const dl = nativo && nativo.querySelector('#field_id' + idCampo(chave));
     if (!dl) return '';
-    // quem edita tem o campo de edição (sempre o mais atualizado); os demais só têm o texto exibido
+    // Todo campo tem uma caixa de edição escondida, mas ela só vem preenchida para o dono do perfil.
+    // Então: se a caixa tem texto (dono, e é o mais atualizado), usa ela; senão usa o texto exibido.
     const ctl = dl.querySelector('.field_editable textarea, .field_editable input[type="text"]');
-    if (ctl) return ctl.value.trim();
+    const editado = ctl ? ctl.value.trim() : '';
+    if (editado) return editado;
     const v = dl.querySelector('.field_uneditable');
-    return v ? textoDe(v) : '';
+    const exibido = v ? textoDe(v) : '';
+    return exibido === '-' ? '' : exibido; // o fórum mostra "-" quando o campo está vazio
   }
   const vazio = (txt) => el('p', 'zp-vazio', txt);
 

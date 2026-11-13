@@ -1,0 +1,50 @@
+{
+  "sobrevivente-solsticio": {
+    "nome": "Sobrevivente do Solstício",
+    "desc": "Esteve presente na Última Ceia e saiu vivo para contar a história.",
+    "raridade": "lendaria",
+    "icone": "sol"
+  },
+  "lingua-afiada": {
+    "nome": "Língua Afiada",
+    "desc": "Venceu uma discussão pública no salão da Casa Valerian sem levantar a voz.",
+    "raridade": "epica",
+    "icone": "espada"
+  },
+  "guardiao-segredos": {
+    "nome": "Guardião de Segredos",
+    "desc": "Descobriu um segredo da Casa Valerian e manteve silêncio até o fim.",
+    "raridade": "rara",
+    "icone": "chave"
+  },
+  "danca-mascaras": {
+    "nome": "Dançarino de Máscaras",
+    "desc": "Participou do baile de máscaras sem ser reconhecido.",
+    "raridade": "rara",
+    "icone": "mascara"
+  },
+  "correspondente": {
+    "nome": "Correspondente",
+    "desc": "Trocou mais de dez cartas com o mesmo personagem.",
+    "raridade": "incomum",
+    "icone": "carta"
+  },
+  "veterano": {
+    "nome": "Veterano",
+    "desc": "Completou um ano de Zaldritsos.",
+    "raridade": "incomum",
+    "icone": "ampulheta"
+  },
+  "cliente-fiel": {
+    "nome": "Cliente Fiel",
+    "desc": "Fez sua primeira compra no Boticário do Mestre Alaric.",
+    "raridade": "comum",
+    "icone": "frasco"
+  },
+  "primeiro-passo": {
+    "nome": "Primeiro Passo",
+    "desc": "Concluiu sua primeira trama no Zaldritsos.",
+    "raridade": "comum",
+    "icone": "broto"
+  }
+}

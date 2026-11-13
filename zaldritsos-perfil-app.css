@@ -128,7 +128,7 @@
 
 /* balões (conquistas e ajuda): escuro do Zaldritsos, translúcido, com desfoque */
 .zp-tip, .zp-ajuda { position: fixed; z-index: 99999; max-width: calc(100vw - 24px);
-  background: color-mix(in srgb, var(--zp-superficie) 90%, transparent);
+  background: var(--zp-campo);
   -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
   border: 1px solid color-mix(in srgb, var(--zp-borda) 30%, transparent); box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
 .zp-tip { width: 280px; padding: 14px 16px 15px; pointer-events: none; opacity: 0; visibility: hidden; clip-path: inset(0 50% 0 50%); transition: opacity .12s, clip-path .12s, visibility 0s .12s; }

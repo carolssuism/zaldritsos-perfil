@@ -141,7 +141,7 @@
 #z-profile .zp-view .zp-tools select { padding: 8px 30px 8px 10px; }
 /* ===== botão "?" (ajuda) ao lado do título de cada aba ===== */
 #z-profile .zp-help { display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 12px; padding: 0; position: relative; top: -3px; vertical-align: middle;
-  border: 1px solid #94898c; border-radius: 50%; background: transparent; box-shadow: none; color: #bfb1b4; cursor: help;
+  border: 1px solid #94898c; border-radius: 50% !important; background: transparent; box-shadow: none; color: #bfb1b4; cursor: help;
   font: 600 11px/1 Montserrat, Arial, sans-serif; letter-spacing: 0; text-transform: none; }
 #z-profile .zp-help:hover, #z-profile .zp-help:focus-visible, #z-profile .zp-help[aria-expanded="true"] { background: transparent; color: #e1bc66; border-color: #e1bc66; outline: none; }
 .zp-ajuda { position: fixed; z-index: 99999; width: 340px; max-width: calc(100vw - 24px); max-height: min(70vh, 520px); overflow-y: auto; padding: 14px 16px 16px;

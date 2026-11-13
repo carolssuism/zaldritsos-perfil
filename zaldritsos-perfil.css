@@ -2,7 +2,7 @@
    Usa as cores globais do tema (--cor-painel, --cor-texto...) e cai para valores padrão se não existirem. */
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Pirata+One&display=swap");
 
-.zp, .zp-tip {
+.zp, .zp-tip, .zp-ajuda {
   --zp-painel: var(--cor-painel, #090a0c);
   --zp-campo: var(--cor-campo, #101013);
   --zp-superficie: var(--cor-superficie, #1c191b);
@@ -23,7 +23,7 @@
 
 /* ===== área do painel (dentro do #panel-* do motor do perfil): altura fixa, só o corpo rola ===== */
 .zp-ativo > p, .zp-ativo > .zup-awards { display: none !important; } /* esconde o texto cru do motor */
-.zp-view { margin: 14px 0 0; display: flex; flex-direction: column; height: var(--zp-altura, 480px); max-height: 75vh; min-height: 0; }
+.zp-view { --zp-recuo: 28px; margin: 0; padding: 0 var(--zp-recuo) 22px; display: flex; flex-direction: column; height: var(--zp-altura, 480px); max-height: 75vh; min-height: 0; } /* o recuo é o mesmo do título do tema (28px) */
 .zp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 8px 6px 0; scrollbar-width: thin; scrollbar-color: var(--zp-placeholder) transparent; }
 .zp-body::-webkit-scrollbar { width: 6px; }
 .zp-body::-webkit-scrollbar-thumb { background: var(--zp-placeholder); }
@@ -42,7 +42,7 @@
 .zp-rel-tipo { margin: 6px 0 0; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--zp-suave); overflow-wrap: anywhere; }
 
 /* ===== Tracker ===== */
-.zp-tools { flex: none; display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; justify-content: space-between; padding: 0 0 14px; border-bottom: 1px solid var(--zp-linha); }
+.zp-tools { flex: none; display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; justify-content: space-between; margin: 0 calc(var(--zp-recuo, 28px) * -1); padding: 14px var(--zp-recuo, 28px) 14px; border-bottom: 1px solid var(--zp-linha); }
 .zp-st { display: flex; gap: 16px; }
 .zp-st button { font: 600 10px/1 Montserrat, Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; background: none; border: 0; border-bottom: 1px solid transparent; color: var(--zp-discreto); padding: 4px 0 6px; cursor: pointer; }
 .zp-st button:hover { color: var(--zp-suave); }
@@ -111,6 +111,7 @@
 .zp-pick button:hover { background: #1c191b; }
 
 @media (max-width: 560px) {
+  .zp-view { --zp-recuo: 16px; }
   .zp-dir, .zp-tools select, .zp-tools input { width: 100%; }
   .zp-tr-grid { grid-template-columns: 1fr; }
   .zp-tr { grid-template-columns: 92px 1fr; gap: 14px; }
@@ -138,3 +139,22 @@
   background-color: var(--zp-campo); box-shadow: none; border-radius: 0; font: 11px Montserrat, Arial, sans-serif; }
 #z-profile .zp-view .zp-tools input { padding: 8px 10px; }
 #z-profile .zp-view .zp-tools select { padding: 8px 30px 8px 10px; }
+/* ===== botão "?" (ajuda) ao lado do título de cada aba ===== */
+#z-profile .zp-help { display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 12px; padding: 0; position: relative; top: -3px; vertical-align: middle;
+  border: 1px solid #94898c; border-radius: 50%; background: transparent; box-shadow: none; color: #bfb1b4; cursor: help;
+  font: 600 11px/1 Montserrat, Arial, sans-serif; letter-spacing: 0; text-transform: none; }
+#z-profile .zp-help:hover, #z-profile .zp-help:focus-visible, #z-profile .zp-help[aria-expanded="true"] { background: transparent; color: #e1bc66; border-color: #e1bc66; outline: none; }
+.zp-ajuda { position: fixed; z-index: 99999; width: 340px; max-width: calc(100vw - 24px); max-height: min(70vh, 520px); overflow-y: auto; padding: 14px 16px 16px;
+  background: #000; border: 1px solid var(--zp-linha); box-shadow: 0 10px 30px rgba(0,0,0,.6); color: var(--zp-suave); font: 12px/1.65 Montserrat, Arial, sans-serif;
+  opacity: 0; visibility: hidden; transition: opacity .15s, visibility 0s .15s; scrollbar-width: thin; scrollbar-color: var(--zp-placeholder) transparent; }
+.zp-ajuda.zp-ajuda-on { opacity: 1; visibility: visible; transition: opacity .15s, visibility 0s; }
+.zp-ajuda h4 { margin: 0 0 6px; font: 400 21px/1.1 "Pirata One", Georgia, serif; color: var(--zp-texto); }
+.zp-ajuda p { margin: 9px 0 0; }
+.zp-ajuda b { color: var(--zp-solstice); font-weight: 600; }
+.zp-ajuda a { color: var(--zp-solstice); }
+.zp-ajuda code { display: block; margin: 6px 0 0; padding: 7px 9px; background: var(--zp-campo); border: 1px solid var(--zp-linha); color: var(--zp-solstice);
+  font: 11px/1.5 Consolas, "Courier New", monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.zp-ajuda ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.zp-ajuda li { margin: 0 0 7px; line-height: 1.5; }
+.zp-ajuda li code { display: inline-block; margin: 0 4px 0 0; padding: 1px 6px; }
+@media (prefers-reduced-motion: reduce) { .zp-ajuda, .zp-ajuda.zp-ajuda-on { transition: none; } }

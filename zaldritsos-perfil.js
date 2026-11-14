@@ -5,10 +5,14 @@
   if (window.__zpCarregador) return;
   window.__zpCarregador = true;
   var base = 'https://carolssuism.github.io/zaldritsos-perfil/';
-  var css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = base + 'zaldritsos-perfil-app.css';
-  document.head.appendChild(css);
+  var css = document.getElementById('zp-perfil-css') || document.querySelector('link[href="' + base + 'zaldritsos-perfil-app.css"]');
+  if (!css) {
+    css = document.createElement('link');
+    css.id = 'zp-perfil-css';
+    css.rel = 'stylesheet';
+    css.href = base + 'zaldritsos-perfil-app.css';
+    document.head.appendChild(css);
+  }
   var js = document.createElement('script');
   js.src = base + 'zaldritsos-perfil-app.js';
   document.head.appendChild(js);

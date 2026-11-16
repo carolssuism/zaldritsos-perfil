@@ -324,29 +324,90 @@
       else if (!topico) c.append(el('small', 'zp-hab-info', 'A leitura de livros ainda não foi ativada pela administração.'));
       else if (!livre) c.append(el('small', 'zp-hab-info', 'Ainda não dá para ler: faltam requisitos.'));
       else {
-        const ler = botao('Ler livro'); let armado = false, busy = false, timer = null;
-        ler.addEventListener('click', async () => {
-          if (busy) return;
-          if (!armado) { armado = true; ler.textContent = 'Confirmar leitura?'; timer = setTimeout(() => { armado = false; ler.textContent = 'Ler livro'; }, 4000); return; }
-          clearTimeout(timer); busy = true; ler.disabled = true; status.className = 'zp-evo-status';
-          const pend = pendentes['livro:' + id] || (pendentes['livro:' + id] = { acao: 'livro', id: novoIdRecibo(), topico, subtitulo: 'Leitura de livro', dados: 'v1|livro|' + id, linhas: [item.nome || id, 'Habilidade: ' + hab.nome] });
-          try {
-            const res = await executarRecibo(pend, (x) => { status.textContent = x; });
-            if (res && res.status === 'aprovada') {
-              delete pendentes['livro:' + id]; status.className = 'zp-evo-status zp-evo-ok';
-              status.textContent = (res.aprendeuAgora ? 'Você aprendeu ' + hab.nome + '!' : hab.nome + ' evoluiu!') + ' +' + res.ganho + ' XP. Atualizando…';
-              setTimeout(() => location.reload(), 1400); return;
-            }
-            if (res && (res.status === 'recusada' || res.status === 'invalido')) delete pendentes['livro:' + id];
-            status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (res && res.motivo) || 'Não foi possível concluir agora. Tente de novo.';
-          } catch (e) { status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (e && e.message) || 'Não foi possível concluir agora. Tente de novo.'; }
-          busy = false; ler.disabled = false; armado = false; ler.textContent = 'Tentar de novo';
-        });
-        c.append(ler);
+        c.append(botaoLerLivro(topico, id, item, hab, status));
       }
       c.append(status); grade.append(c);
     });
     return sec;
+  }
+  /** Botão "Ler livro" (com confirmação) — o mesmo na aba Habilidades e no Inventário. */
+  function botaoLerLivro(topico, id, item, hab, status) {
+    const ler = botao('Ler livro'); let armado = false, busy = false, timer = null;
+    ler.addEventListener('click', async () => {
+      if (busy) return;
+      if (!armado) { armado = true; ler.textContent = 'Confirmar leitura?'; timer = setTimeout(() => { armado = false; ler.textContent = 'Ler livro'; }, 4000); return; }
+      clearTimeout(timer); busy = true; ler.disabled = true; status.className = 'zp-evo-status';
+      const pend = pendentes['livro:' + id] || (pendentes['livro:' + id] = { acao: 'livro', id: novoIdRecibo(), topico, subtitulo: 'Leitura de livro', dados: 'v1|livro|' + id, linhas: [item.nome || id, 'Habilidade: ' + hab.nome] });
+      try {
+        const res = await executarRecibo(pend, (x) => { status.textContent = x; });
+        if (res && res.status === 'aprovada') {
+          delete pendentes['livro:' + id]; status.className = 'zp-evo-status zp-evo-ok';
+          status.textContent = (res.aprendeuAgora ? 'Você aprendeu ' + hab.nome + '!' : hab.nome + ' evoluiu!') + ' +' + res.ganho + ' XP. Atualizando…';
+          setTimeout(() => location.reload(), 1400); return;
+        }
+        if (res && (res.status === 'recusada' || res.status === 'invalido')) delete pendentes['livro:' + id];
+        status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (res && res.motivo) || 'Não foi possível concluir agora. Tente de novo.';
+      } catch (e) { status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (e && e.message) || 'Não foi possível concluir agora. Tente de novo.'; }
+      busy = false; ler.disabled = false; armado = false; ler.textContent = 'Tentar de novo';
+    });
+    return ler;
+  }
+
+  /* ---------- Livros no Inventário: ícone de livro, "Consumível · Comum", efeito sem o nome do autor e botão "Ler livro" ---------- */
+  const ICONE_LIVRO = 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#fff" fill-rule="evenodd" d="M6 2h12a2 2 0 0 1 2 2v14.5H7a1.5 1.5 0 0 0 0 3h13V22H7a3.5 3.5 0 0 1-3.5-3.5V4.5A2.5 2.5 0 0 1 6 2zm.5 2.2v12.3H18V4.2H6.5zM9 7h6.5v1.6H9V7zm0 3.2h4.5v1.6H9v-1.6z"/></svg>') + '")';
+  function livrosNoInventario() {
+    const painel = document.getElementById('panel-inventory'); if (!painel) return;
+    const raiz = document.getElementById('z-profile'); if (raiz) raiz.style.setProperty('--z-icon-livro-lido', ICONE_LIVRO);
+    const dono = ehDono(), idp = idPerfil();
+    const livros = new Map(); let ctxP = null, ocupado = false, agendado = false;
+    const infoLivro = async (id) => {
+      if (livros.has(id)) return livros.get(id);
+      const it = await fsLer('shop_items/' + id, 10).catch(() => null);
+      const ok = it && it.habilidade && Number(it.xpHabilidade) > 0 ? it : null;
+      livros.set(id, ok); return ok;
+    };
+    const contexto = () => ctxP || (ctxP = Promise.all([fsLer('ficha_config/habilidades', 10), fsLer('ficha_config/regras', 10), idp ? fsLer('personagens/' + idp) : null]).then(([cfg, regras, pers]) => ({ cfg, regras: regras || {}, pers: pers || {} })).catch(() => null));
+    const obs = new MutationObserver(() => { if (!agendado && !ocupado) { agendado = true; requestAnimationFrame(() => { agendado = false; aplicar(); }); } });
+    const ligar = () => obs.observe(painel, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-pressed'] });
+    async function aplicar() {
+      if (ocupado) return; ocupado = true; obs.disconnect();
+      try {
+        const botoes = [...painel.querySelectorAll('.zui-items button[data-item]')];
+        const infos = await Promise.all(botoes.map((b) => infoLivro(b.dataset.item)));
+        botoes.forEach((b, i) => { if (infos[i]) { const ic = b.querySelector('.zui-icon'); if (ic) ic.style.setProperty('--inventory-icon', 'var(--z-icon-livro-lido)'); } });
+        const sel = painel.querySelector('.zui-items button[aria-pressed="true"]');
+        const caixaAnt = painel.querySelector('.zp-ler-box'); if (caixaAnt) caixaAnt.remove();
+        const id = sel && sel.dataset.item, item = id ? await infoLivro(id) : null;
+        if (!item) return;
+        const c = await contexto(); if (!c || !c.cfg) return;
+        const hab = (c.cfg.lista || []).find((h) => h.id === item.habilidade); if (!hab) return;
+        const inte = Number((c.pers.atributos || {}).inteligencia) || 0;
+        const ganho = Math.round(Number(item.xpHabilidade) * (1 + inte / 20));
+        ['.zui-detail-icon', '.zui-watermark'].forEach((s) => { const n = painel.querySelector(s); if (n) n.style.setProperty('--inventory-icon', 'var(--z-icon-livro-lido)'); });
+        const kind = painel.querySelector('.zui-item-kind');
+        if (kind) {
+          kind.replaceChildren();
+          const r = el('span', 'zui-tag zui-tag--rar', 'Comum'); r.dataset.rar = 'comum';
+          kind.append(r, el('span', 'zui-tag', 'Consumível'));
+        }
+        const rodape = painel.querySelector('.zui-item-footnote'); if (rodape) rodape.textContent = 'Livro · Aprendizado';
+        const efeito = painel.querySelector('.zui-effect dd'); if (efeito) efeito.textContent = '+' + ganho + ' XP de ' + hab.nome;
+        if (!dono) return;
+        const det = document.getElementById('zui-detail'); if (!det) return;
+        const caixa = el('div', 'zf-usar zp-ler-box');
+        caixa.style.cssText = 'margin-top:18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;position:relative;z-index:2';
+        const status = el('p', 'zp-evo-status'); status.setAttribute('aria-live', 'polite');
+        const xpAtual = Number((c.pers.habilidades || {})[hab.id]) || 0;
+        const reqs = xpAtual === 0 ? requisitos(hab, c.pers, c.cfg, c.regras) : [];
+        const topico = Number(c.regras.topicoRecibos) > 0 ? String(Number(c.regras.topicoRecibos)) : '';
+        if ((c.pers.livrosLidos || {})[id]) status.textContent = 'Você já leu este livro.';
+        else if (!topico) status.textContent = 'A leitura de livros ainda não foi ativada pela administração.';
+        else if (!reqs.every((x) => x.ok)) status.textContent = 'Ainda não dá para ler: faltam requisitos (' + reqs.filter((x) => !x.ok).map((x) => x.texto).join(', ') + ').';
+        else caixa.append(botaoLerLivro(topico, id, item, hab, status));
+        caixa.append(status); det.append(caixa);
+      } catch (_) { /* silencioso */ } finally { ocupado = false; ligar(); }
+    }
+    ligar(); aplicar();
   }
 
   // Ícones do menu lateral: os mesmos do perfil (inventário e atributos), para ficar tudo padronizado.
@@ -426,11 +487,12 @@
     inv.after(btn);
     const painel = el('section', 'zup-text-panel'); painel.id = 'panel-skills';
     painel.setAttribute('role', 'tabpanel'); painel.setAttribute('aria-labelledby', 'tab-skills'); painel.tabIndex = 0; painel.hidden = true;
-    const cab = el('header', 'zup-tab-heading'); const d = el('div'); d.append(el('h2', null, 'Habilidades'), el('p', null, 'Estrelas, treino e requisitos do personagem.')); cab.append(d);
+    const cab = el('header', 'zup-tab-heading'); const d = el('div'); d.append(el('h2', null, 'Habilidades'), el('p', null, 'Estrelas, treino e requisitos do personagem.'));
+    const filtros = el('div', 'zp-hab-filtros'); cab.append(d, filtros); // filtros ficam no cabeçalho, à direita
     const view = el('div', 'zp zp-view zp-habilidades'); view.style.setProperty('--zp-altura', '520px');
     const trilho = el('nav', 'zui-categories zp-hab-trilho'); trilho.setAttribute('aria-label', 'Categorias de habilidades');
-    const principal = el('div', 'zp-hab-main'); const filtros = el('div', 'zp-hab-filtros'); const corpo = el('div', 'zp-body');
-    principal.append(filtros, corpo);
+    const principal = el('div', 'zp-hab-main'); const corpo = el('div', 'zp-body');
+    principal.append(corpo);
     const layout = el('div', 'zp-hab-layout'); layout.append(trilho, principal); view.append(layout);
     const L = { trilho, filtros, corpo, dados: null, livros: null };
     painel.append(cab, view);
@@ -527,6 +589,7 @@
   function aplicar() {
     try { montarAba(); } catch (_) { /* a aba é opcional */ }
     try { vitalidade(); } catch (_) { /* barra opcional */ }
+    if (!aplicar.__livros) { aplicar.__livros = true; try { livrosNoInventario(); } catch (_) { /* opcional */ } }
     badgePontos().catch(() => { /* botão opcional */ });
     ferimentos().catch(() => { /* lista opcional */ });
   }

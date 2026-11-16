@@ -208,14 +208,15 @@
 /* Aba Habilidades: menu lateral (mesmo visual do inventário) + filtros + cartões */
 #z-profile .zp-view.zp-habilidades { padding: 0; }
 .zp-hab-layout { display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--zp-linha); }
-.zp-hab-trilho { width: 66px; flex: none; box-sizing: border-box; border-right: 1px solid var(--zp-linha); overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
-.zp-hab-trilho::-webkit-scrollbar { display: none; width: 0; height: 0; }
-.zp-hab-trilho .zui-category { height: 57px; flex: none; }
-.zp-hab-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 0 22px 20px; }
-.zp-hab-filtros { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 18px 0 8px; }
+.zp-hab-trilho { width: 66px; flex: none; box-sizing: border-box; border-right: 1px solid var(--zp-linha); display: flex; flex-direction: column; overflow: hidden; }
+.zp-hab-trilho .zui-category { flex: 1 1 0; height: auto; min-height: 34px; max-height: 57px; }
+.zp-hab-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 18px 22px 20px; }
+/* filtros no cabeçalho da aba, à direita */
+#panel-skills .zup-tab-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.zp-hab-filtros { flex: none; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
 .zp-hab-filtros .zp-btn[aria-pressed="true"] { color: var(--zp-solstice); border-color: var(--zp-solstice); background: color-mix(in srgb, var(--zp-solstice) 14%, transparent); }
 .zp-hab-main .zp-body { padding-right: 6px; }
-@media (max-width: 560px) { .zp-hab-main { padding: 0 12px 16px; } .zp-hab-trilho { width: 54px; padding-left: 3px; padding-right: 3px; } }
+@media (max-width: 560px) { .zp-hab-main { padding: 14px 12px 16px; } .zp-hab-filtros { margin-left: 0; justify-content: flex-start; } .zp-hab-trilho { width: 54px; padding-left: 3px; padding-right: 3px; } }
 
 /* "!" no quadro do Nível: aparece enquanto houver pontos para distribuir e chama a atenção de tempos em tempos */
 #z-profile .zup-level .zp-pontos-badge { position: absolute !important; top: -8px; right: -8px; z-index: 5; width: 22px; height: 22px; padding: 0 !important; display: grid; place-items: center; border-radius: 0 !important; cursor: pointer; opacity: 1 !important;

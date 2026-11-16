@@ -391,6 +391,8 @@
 
   function comecar() {
     if (!document.getElementById('z-profile')) return; // não é uma página de perfil
+    // Evolução (aba Habilidades, Ferimentos e Vitalidade): arquivo à parte; se falhar, o perfil segue normal
+    carregarScript(BASE + 'zaldritsos-perfil-evolucao.js').catch(() => {});
     if (!iniciar()) {
       let n = 0; const t = setInterval(() => { if (iniciar() || ++n > 60) clearInterval(t); }, 250);
     }

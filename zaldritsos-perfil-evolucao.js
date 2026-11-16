@@ -103,12 +103,17 @@
   const ehDono = () => { const u = usuarioLogado(); return !!u && u.id === idPerfil(); };
   const novoIdRecibo = () => 'zal-recibo-evo-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
 
+  const celulaRecibo = (rotulo, valorHtml) => '<div style="padding:12px 14px;border:1px solid color-mix(in srgb,#969490 24%,transparent);text-align:left">' +
+    '<b style="display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;text-align:left">' + esc(rotulo) + '</b>' +
+    '<span style="font-size:13px;text-align:left">' + valorHtml + '</span></div>';
   function montarRecibo(idRecibo, subtitulo, linhas, dados) {
     const u = usuarioLogado();
     return '<div id="' + idRecibo + '" class="zal-staff-post"><div class="zal-staff-header"><h1 class="zal-staff-title">Recibo de Evolução</h1>' +
       '<p class="zal-staff-subtitle">' + esc(subtitulo) + '</p></div><div class="zal-staff-body"><div class="zal-staff-section">' +
-      '<p>Personagem: <a href="/u' + u.id + '">' + esc(u.nome) + '</a></p>' + linhas.map((l) => '<p>' + esc(l) + '</p>').join('') +
-      '</div></div><span class="zal-acao-dados" style="display:none">' + esc(dados) + '</span></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:0">' +
+      celulaRecibo('Personagem', '<a href="/u' + u.id + '">' + esc(u.nome) + '</a>') +
+      linhas.map((l) => { const s = String(l), i = s.indexOf(': '), j = s.lastIndexOf(' '); const [rot, val] = i > 0 ? [s.slice(0, i), s.slice(i + 2)] : j > 0 ? [s.slice(0, j), s.slice(j + 1)] : ['Registro', s]; return celulaRecibo(rot, esc(val)); }).join('') +
+      '</div></div></div><span class="zal-acao-dados" style="display:none">' + esc(dados) + '</span></div>' +
       '<div class="zal-staff-credit"><a href="/">@zaldritsos</a></div>';
   }
   async function abrirFormResposta(topico) {
@@ -337,7 +342,7 @@
       if (busy) return;
       if (!armado) { armado = true; ler.textContent = 'Confirmar leitura?'; timer = setTimeout(() => { armado = false; ler.textContent = 'Ler livro'; }, 4000); return; }
       clearTimeout(timer); busy = true; ler.disabled = true; status.className = 'zp-evo-status';
-      const pend = pendentes['livro:' + id] || (pendentes['livro:' + id] = { acao: 'livro', id: novoIdRecibo(), topico, subtitulo: 'Leitura de livro', dados: 'v1|livro|' + id, linhas: [item.nome || id, 'Habilidade: ' + hab.nome] });
+      const pend = pendentes['livro:' + id] || (pendentes['livro:' + id] = { acao: 'livro', id: novoIdRecibo(), topico, subtitulo: 'Leitura de livro', dados: 'v1|livro|' + id, linhas: ['Livro: ' + (item.nome || id), 'Habilidade: ' + hab.nome] });
       try {
         const res = await executarRecibo(pend, (x) => { status.textContent = x; });
         if (res && res.status === 'aprovada') {

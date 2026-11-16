@@ -208,7 +208,8 @@
 /* Aba Habilidades: menu lateral (mesmo visual do inventário) + filtros + cartões */
 #z-profile .zp-view.zp-habilidades { padding: 0; }
 .zp-hab-layout { display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--zp-linha); }
-.zp-hab-trilho { width: 66px; flex: none; box-sizing: border-box; border-right: 1px solid var(--zp-linha); overflow-y: auto; scrollbar-width: none; }
+.zp-hab-trilho { width: 66px; flex: none; box-sizing: border-box; border-right: 1px solid var(--zp-linha); overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+.zp-hab-trilho::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .zp-hab-trilho .zui-category { height: 57px; flex: none; }
 .zp-hab-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 0 22px 20px; }
 .zp-hab-filtros { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 18px 0 8px; }
@@ -233,6 +234,9 @@
 /* pop-up da distribuição de pontos (fica preso ao "!") */
 .zp-pop { position: fixed; z-index: 100000; width: 320px; max-width: calc(100vw - 16px); background: var(--zp-campo); border: 1px solid color-mix(in srgb, var(--zp-borda) 45%, transparent); box-shadow: 0 14px 34px rgba(0, 0, 0, .6); }
 .zp-pop-corpo { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+.zp-pop .zp-evo-lista { gap: 2px; }
+.zp-pop .zp-evo-linha { min-height: 32px; }
+.zp-pop .zp-evo-nome { text-align: left; }
 /* Pontos de atributo e livros (só para o dono do perfil) */
 .zp-evo-bloco { margin: 0 0 22px; }
 .zp-evo-lista { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }

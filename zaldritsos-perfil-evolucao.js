@@ -198,9 +198,15 @@
     const corpo = el('div', 'zp-pop-corpo'); pop.append(corpo); document.body.append(pop);
     ancora.setAttribute('aria-expanded', 'true');
     const reposicionar = () => {
-      const r = ancora.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-      const x = Math.min(Math.max(8, r.right - w), innerWidth - w - 8);
-      let y = r.bottom + 10; if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 10);
+      const r = ancora.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, m = 8;
+      const noX = (x) => Math.min(Math.max(m, x), Math.max(m, innerWidth - w - m));
+      let x, y;
+      if (r.bottom + 10 + h <= innerHeight - m) { x = noX(r.right - w); y = r.bottom + 10; } // cabe embaixo do "!"
+      else if (r.top - 10 - h >= m) { x = noX(r.right - w); y = r.top - 10 - h; } // cabe em cima
+      else { // não cabe em cima nem embaixo (tela baixa): fica ao lado do "!", sem cobri-lo
+        x = r.left - 10 - w >= m ? r.left - 10 - w : noX(r.right + 10);
+        y = Math.min(Math.max(m, r.top - 20), Math.max(m, innerHeight - h - m));
+      }
       pop.style.left = x + 'px'; pop.style.top = y + 'px';
     };
     const aoFora = (e) => { if (!pop.contains(e.target) && !ancora.contains(e.target)) fecharPopup(false); };
@@ -421,7 +427,7 @@
     const painel = el('section', 'zup-text-panel'); painel.id = 'panel-skills';
     painel.setAttribute('role', 'tabpanel'); painel.setAttribute('aria-labelledby', 'tab-skills'); painel.tabIndex = 0; painel.hidden = true;
     const cab = el('header', 'zup-tab-heading'); const d = el('div'); d.append(el('h2', null, 'Habilidades'), el('p', null, 'Estrelas, treino e requisitos do personagem.')); cab.append(d);
-    const view = el('div', 'zp zp-view zp-habilidades'); view.style.setProperty('--zp-altura', '470px');
+    const view = el('div', 'zp zp-view zp-habilidades'); view.style.setProperty('--zp-altura', '520px');
     const trilho = el('nav', 'zui-categories zp-hab-trilho'); trilho.setAttribute('aria-label', 'Categorias de habilidades');
     const principal = el('div', 'zp-hab-main'); const filtros = el('div', 'zp-hab-filtros'); const corpo = el('div', 'zp-body');
     principal.append(filtros, corpo);

@@ -204,6 +204,23 @@
 .zp-hab-reqs { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 10px; letter-spacing: .3px; }
 .zp-hab-reqs .zp-ok { color: var(--zp-suave); }
 .zp-hab-reqs .zp-falta { color: var(--zp-destaque-claro); }
+/* Pontos de atributo e livros (só para o dono do perfil) */
+.zp-evo-bloco { margin: 0 0 22px; }
+.zp-evo-caixa { max-width: 520px; }
+.zp-evo-lista { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }
+.zp-evo-linha { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.zp-evo-nome { flex: 1; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; font-size: 11px; }
+.zp-evo-valor { min-width: 64px; text-align: center; font-weight: 700; color: var(--zp-solstice); }
+.zp-evo-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.zp-btn { align-self: flex-start; padding: 8px 14px; background: transparent; color: var(--zp-solstice); border: 1px solid var(--zp-solstice); font: 600 10px/1 Montserrat, Arial, sans-serif; letter-spacing: 1.2px; text-transform: uppercase; cursor: pointer; transition: background .2s, color .2s; }
+.zp-btn:hover:not(:disabled), .zp-btn:focus-visible:not(:disabled) { background: var(--zp-solstice); color: var(--zp-painel); outline: none; }
+.zp-btn:disabled { opacity: .4; cursor: not-allowed; }
+.zp-btn-sec { color: var(--zp-suave); border-color: var(--zp-linha); }
+.zp-btn-mini { width: 26px; height: 26px; padding: 0; font-size: 14px; letter-spacing: 0; text-align: center; }
+.zp-evo-status { margin: 4px 0 0; min-height: 1em; font-size: 11px; line-height: 1.5; color: var(--zp-suave); }
+.zp-evo-status:empty { display: none; }
+.zp-evo-ok { color: var(--zp-solstice); }
+.zp-evo-erro { color: var(--zp-destaque-claro); }
 /* Ferimentos automáticos (ficam dentro do campo "Ferimentos", fora do .zp: usam as cores globais do tema) */
 .zp-feridas { list-style: none; margin: 0; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 8px; }
 .zp-ferida { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 12px; color: var(--cor-texto-suave, #bfb1b4); }

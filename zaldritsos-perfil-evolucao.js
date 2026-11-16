@@ -92,6 +92,208 @@
     }
     return c;
   }
+  /* ---------- recibos no fórum + confirmação no servidor (pontos e livros) ---------- */
+  // O jogador nunca grava no banco: ele posta um recibo num tópico do fórum e o script do Google confere
+  // o autor, as regras e o saldo antes de gravar. Mesma ideia da compra na loja.
+  const WEBAPP = 'https://script.google.com/macros/s/AKfycbxcwXY-FCPE9wuSGda-n0sCgrRsLZkym8GZy40jc-eWrR_gcou__mpWYTGZJLmLdXBw/exec';
+  const NOMES_ATRIB = ['carisma', 'destreza', 'forca', 'sabedoria', 'inteligencia'];
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const usuarioLogado = () => { const u = window._userdata; const id = u ? Number(u.user_id) : 0; return id > 0 ? { id: String(id), nome: u.username || ('/u' + id) } : null; };
+  const ehDono = () => { const u = usuarioLogado(); return !!u && u.id === idPerfil(); };
+  const novoIdRecibo = () => 'zal-recibo-evo-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+
+  function montarRecibo(idRecibo, subtitulo, linhas, dados) {
+    const u = usuarioLogado();
+    return '<div id="' + idRecibo + '" class="zal-staff-post"><div class="zal-staff-header"><h1 class="zal-staff-title">Recibo de Evolução</h1>' +
+      '<p class="zal-staff-subtitle">' + esc(subtitulo) + '</p></div><div class="zal-staff-body"><div class="zal-staff-section">' +
+      '<p>Personagem: <a href="/u' + u.id + '">' + esc(u.nome) + '</a></p>' + linhas.map((l) => '<p>' + esc(l) + '</p>').join('') +
+      '</div></div><span class="zal-acao-dados" style="display:none">' + esc(dados) + '</span></div>' +
+      '<div class="zal-staff-credit"><a href="/">@zaldritsos</a></div>';
+  }
+  async function abrirFormResposta(topico) {
+    const r = await fetch('/post?t=' + topico + '&mode=reply', { credentials: 'same-origin', cache: 'no-store' });
+    if (!r.ok) throw new Error('O fórum não conseguiu abrir a tela de resposta.');
+    const pag = new DOMParser().parseFromString(await r.text(), 'text/html');
+    const form = [...pag.forms].find((f) => f.querySelector('textarea[name="message"]') && f.querySelector('input[name="mode"][value="reply"]') && f.querySelector('input[name="t"]') && f.querySelector('input[name="t"]').value === String(topico));
+    if (!form) throw new Error('O fórum não abriu a resposta para este tópico. Confira sua sessão e a permissão para responder.');
+    return form;
+  }
+  async function enviarResposta(form, mensagem) {
+    const campos = new FormData(form);
+    campos.set('message', mensagem);
+    campos.set('post', (form.querySelector('[name="post"]') || {}).value || '1');
+    campos.delete('disable_html'); campos.delete('preview');
+    const corpo = new URLSearchParams();
+    for (const [k, v] of campos) if (typeof v === 'string') corpo.append(k, v);
+    try {
+      const r = await fetch('/post', { method: 'POST', credentials: 'same-origin', body: corpo });
+      if (r.ok) { const pag = new DOMParser().parseFromString(await r.text(), 'text/html'); const e = pag.querySelector('p.error, .error-message'); return e ? e.textContent.trim() : ''; }
+    } catch (_) { /* a confirmação é feita ao procurar a postagem */ }
+    return '';
+  }
+  async function acharPostagem(topico, idRecibo) {
+    for (let i = 0; i < 4; i++) {
+      try {
+        const r = await fetch('/t' + topico + '-?view=newest', { credentials: 'same-origin', cache: 'no-store' });
+        if (r.ok) { const pag = new DOMParser().parseFromString(await r.text(), 'text/html'); const alvo = pag.getElementById(idRecibo); const art = alvo && alvo.closest('article'); if (art && /^\d+$/.test(art.id)) return art.id; }
+      } catch (_) { /* tenta de novo */ }
+      await esperar(1500);
+    }
+    return null;
+  }
+  async function postarRecibo(topico, mensagem, idRecibo) {
+    const form = await abrirFormResposta(topico);
+    const erroForum = await enviarResposta(form, mensagem);
+    const post = await acharPostagem(topico, idRecibo);
+    if (!post) throw new Error(erroForum || 'O fórum não confirmou a publicação do recibo. Confira o tópico antes de tentar novamente.');
+    return post;
+  }
+  async function confirmarNoServidor(acao, post, aoStatus) {
+    let ultimo = null;
+    for (let t = 0; t < 6; t++) {
+      try {
+        const r = await fetch(WEBAPP, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao, post }) });
+        ultimo = await r.json();
+      } catch (_) { ultimo = { ok: false, status: 'erro', retry: true, motivo: 'Sem conexão com o servidor.' }; }
+      if (['aprovada', 'recusada', 'invalido'].includes(ultimo.status) || !ultimo.retry) return ultimo;
+      if (aoStatus) aoStatus('Conferindo no servidor…');
+      await esperar(1500 + t * 1500);
+    }
+    return ultimo;
+  }
+  /** Posta o recibo (uma vez só, mesmo se o servidor demorar) e confirma. pend guarda a postagem para "Tentar de novo". */
+  async function executarRecibo(pend, aoStatus) {
+    if (!pend.post) {
+      aoStatus('Registrando no fórum…');
+      pend.post = await postarRecibo(pend.topico, montarRecibo(pend.id, pend.subtitulo, pend.linhas, pend.dados), pend.id);
+    }
+    aoStatus('Conferindo no servidor…');
+    return confirmarNoServidor(pend.acao, pend.post, aoStatus);
+  }
+  const botao = (txt, cls) => { const b = el('button', 'zp-btn' + (cls ? ' ' + cls : ''), txt); b.type = 'button'; return b; };
+  const pendentes = {}; // por tipo de pedido: evita criar outro recibo se o primeiro já foi postado
+
+  /* ---------- Pontos de atributo ---------- */
+  function cartaoPontos(ctx) {
+    const { pers, regras, topico } = ctx;
+    const nivel = nivelGeral(Number(pers.xp) || 0, regras);
+    const livres = Math.max(0, Number(regras.pontosPorNivel) * (nivel - 1) - (Number(pers.pontosGastos) || 0));
+    const max = Number(regras.atributoMax) || 10;
+    const sec = el('section', 'zp-evo-bloco'); sec.append(el('h3', 'zp-hab-grupo-nome', 'Pontos de atributo'));
+    const caixa = el('div', 'zp-hab zp-evo-caixa');
+    const topo = el('div', 'zp-hab-topo');
+    topo.append(el('h4', 'zp-hab-nome', livres + (livres === 1 ? ' ponto livre' : ' pontos livres')), el('small', 'zp-hab-info', regras.pontosPorNivel + ' por nível'));
+    caixa.append(topo); sec.append(caixa);
+    if (!topico) { caixa.append(el('small', 'zp-hab-info', 'A distribuição de pontos ainda não foi ativada pela administração.')); return sec; }
+    if (!livres) { caixa.append(el('small', 'zp-hab-info', 'Nada para distribuir agora. Você ganha novos pontos ao subir de nível.')); return sec; }
+    const status = el('p', 'zp-evo-status'); status.setAttribute('aria-live', 'polite');
+    const abrir = botao('Distribuir pontos'); caixa.append(abrir, status);
+    abrir.addEventListener('click', () => {
+      abrir.remove();
+      const add = {}; NOMES_ATRIB.forEach((a) => { add[a] = 0; });
+      const total = () => NOMES_ATRIB.reduce((s, a) => s + add[a], 0);
+      const lista = el('div', 'zp-evo-lista'); const linhas = {};
+      NOMES_ATRIB.forEach((a) => {
+        const base = Number((pers.atributos || {})[a]) || 0;
+        const l = el('div', 'zp-evo-linha');
+        const menos = botao('−', 'zp-btn-mini'), mais = botao('+', 'zp-btn-mini'), val = el('span', 'zp-evo-valor');
+        menos.setAttribute('aria-label', 'Tirar ponto de ' + ATRIB[a]); mais.setAttribute('aria-label', 'Pôr ponto em ' + ATRIB[a]);
+        l.append(el('span', 'zp-evo-nome', ATRIB[a]), menos, val, mais);
+        const atualiza = () => {
+          val.textContent = (base + add[a]) + (add[a] ? ' (+' + add[a] + ')' : '');
+          menos.disabled = add[a] === 0; mais.disabled = total() >= livres || base + add[a] >= max;
+          confirmar.disabled = total() === 0 || busy; resta.textContent = (livres - total()) + ' livres';
+        };
+        linhas[a] = atualiza;
+        menos.addEventListener('click', () => { if (add[a] > 0) { add[a]--; todos(); } });
+        mais.addEventListener('click', () => { if (total() < livres && base + add[a] < max) { add[a]++; todos(); } });
+        lista.append(l);
+      });
+      const todos = () => NOMES_ATRIB.forEach((a) => linhas[a]());
+      const resta = el('small', 'zp-hab-info');
+      const aviso = el('small', 'zp-hab-info', 'Depois de confirmar, a distribuição não pode ser desfeita (só a administração refaz).');
+      const confirmar = botao('Confirmar distribuição'), cancelar = botao('Cancelar', 'zp-btn-sec');
+      let busy = false;
+      const acoes = el('div', 'zp-evo-acoes'); acoes.append(confirmar, cancelar, resta);
+      caixa.insertBefore(lista, status); caixa.insertBefore(aviso, status); caixa.insertBefore(acoes, status); todos();
+      cancelar.addEventListener('click', () => ctx.redesenhar());
+      confirmar.addEventListener('click', async () => {
+        if (busy || !total()) return;
+        busy = true; todos(); cancelar.disabled = true;
+        const dist = NOMES_ATRIB.filter((a) => add[a] > 0).map((a) => a + ':' + add[a]).join(',');
+        const pend = pendentes.pontos && pendentes.pontos.dados === 'v1|pontos|' + dist ? pendentes.pontos
+          : (pendentes.pontos = { acao: 'pontos', id: novoIdRecibo(), topico, subtitulo: 'Pontos de atributo', dados: 'v1|pontos|' + dist,
+            linhas: NOMES_ATRIB.filter((a) => add[a] > 0).map((a) => ATRIB[a] + ' +' + add[a]) });
+        status.className = 'zp-evo-status';
+        try {
+          const res = await executarRecibo(pend, (t) => { status.textContent = t; });
+          if (res && res.status === 'aprovada') {
+            delete pendentes.pontos; status.className = 'zp-evo-status zp-evo-ok';
+            status.textContent = 'Pontos distribuídos! Restam ' + res.pontosLivres + '. Atualizando o perfil…';
+            setTimeout(() => location.reload(), 1400); return;
+          }
+          if (res && (res.status === 'recusada' || res.status === 'invalido')) delete pendentes.pontos;
+          status.className = 'zp-evo-status zp-evo-erro';
+          status.textContent = (res && res.motivo) || 'Não foi possível concluir agora. Tente de novo.';
+        } catch (e) { status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (e && e.message) || 'Não foi possível concluir agora. Tente de novo.'; }
+        busy = false; cancelar.disabled = false; todos();
+      });
+    });
+    return sec;
+  }
+
+  /* ---------- Livros no inventário ---------- */
+  async function blocoLivros(ctx) {
+    const { pers, cfg, regras, topico } = ctx;
+    const ids = Object.keys(pers.itens || {}).filter((k) => Number(pers.itens[k]) > 0);
+    const docs = await Promise.all(ids.map((id) => fsLer('shop_items/' + id, 10).catch(() => null)));
+    const livros = ids.map((id, i) => ({ id, item: docs[i] })).filter((x) => x.item && x.item.habilidade && Number(x.item.xpHabilidade) > 0 && cfg.lista.some((h) => h.id === x.item.habilidade));
+    if (!livros.length) return null;
+    const sec = el('section', 'zp-evo-bloco'); sec.append(el('h3', 'zp-hab-grupo-nome', 'Livros no inventário'));
+    const grade = el('div', 'zp-hab-grade'); sec.append(grade);
+    const inteligencia = Number((pers.atributos || {}).inteligencia) || 0;
+    livros.forEach(({ id, item }) => {
+      const hab = cfg.lista.find((h) => h.id === item.habilidade);
+      const xpAtual = Number((pers.habilidades || {})[hab.id]) || 0;
+      const lido = !!(pers.livrosLidos || {})[id];
+      const ganho = Math.round(Number(item.xpHabilidade) * (1 + inteligencia / 20));
+      const c = el('article', 'zp-hab');
+      const t = el('header', 'zp-hab-topo'); t.append(el('h4', 'zp-hab-nome', item.nome || id)); c.append(t);
+      c.append(el('p', 'zp-hab-desc', 'Ensina ' + hab.nome + ' (+' + ganho + ' XP de habilidade).'));
+      const status = el('p', 'zp-evo-status'); status.setAttribute('aria-live', 'polite');
+      const reqs = xpAtual === 0 ? requisitos(hab, pers, cfg, regras) : [];
+      if (reqs.length) { const ul = el('ul', 'zp-hab-reqs'); reqs.forEach((r) => ul.append(el('li', r.ok ? 'zp-ok' : 'zp-falta', (r.ok ? '✓ ' : '✕ ') + r.texto))); c.append(ul); }
+      const livre = reqs.every((r) => r.ok);
+      if (lido) c.append(el('small', 'zp-hab-info', 'Você já leu este livro.'));
+      else if (!topico) c.append(el('small', 'zp-hab-info', 'A leitura de livros ainda não foi ativada pela administração.'));
+      else if (!livre) c.append(el('small', 'zp-hab-info', 'Ainda não dá para ler: faltam requisitos.'));
+      else {
+        const ler = botao('Ler livro'); let armado = false, busy = false, timer = null;
+        ler.addEventListener('click', async () => {
+          if (busy) return;
+          if (!armado) { armado = true; ler.textContent = 'Confirmar leitura?'; timer = setTimeout(() => { armado = false; ler.textContent = 'Ler livro'; }, 4000); return; }
+          clearTimeout(timer); busy = true; ler.disabled = true; status.className = 'zp-evo-status';
+          const pend = pendentes['livro:' + id] || (pendentes['livro:' + id] = { acao: 'livro', id: novoIdRecibo(), topico, subtitulo: 'Leitura de livro', dados: 'v1|livro|' + id, linhas: [item.nome || id, 'Habilidade: ' + hab.nome] });
+          try {
+            const res = await executarRecibo(pend, (x) => { status.textContent = x; });
+            if (res && res.status === 'aprovada') {
+              delete pendentes['livro:' + id]; status.className = 'zp-evo-status zp-evo-ok';
+              status.textContent = (res.aprendeuAgora ? 'Você aprendeu ' + hab.nome + '!' : hab.nome + ' evoluiu!') + ' +' + res.ganho + ' XP. Atualizando…';
+              setTimeout(() => location.reload(), 1400); return;
+            }
+            if (res && (res.status === 'recusada' || res.status === 'invalido')) delete pendentes['livro:' + id];
+            status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (res && res.motivo) || 'Não foi possível concluir agora. Tente de novo.';
+          } catch (e) { status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (e && e.message) || 'Não foi possível concluir agora. Tente de novo.'; }
+          busy = false; ler.disabled = false; armado = false; ler.textContent = 'Tentar de novo';
+        });
+        c.append(ler);
+      }
+      c.append(status); grade.append(c);
+    });
+    return sec;
+  }
+
   async function desenharHabilidades(corpo) {
     const id = idPerfil();
     corpo.textContent = '';
@@ -99,6 +301,13 @@
       const [cfg, regras, pers] = await Promise.all([fsLer('ficha_config/habilidades', 10), fsLer('ficha_config/regras', 10), id ? fsLer('personagens/' + id) : null]);
       if (!cfg || !(cfg.lista || []).length) { corpo.append(el('p', 'zp-vazio', 'Nenhuma habilidade cadastrada ainda.')); return; }
       const p = pers || {};
+      // Só o dono do perfil vê pontos e livros (quem manda de verdade é o servidor, que confere o autor do recibo).
+      if (ehDono() && pers && regras) {
+        const ctx = { pers: p, cfg, regras, topico: Number(regras.topicoRecibos) > 0 ? String(Number(regras.topicoRecibos)) : '', redesenhar: () => desenharHabilidades(corpo) };
+        if (Number(regras.pontosPorNivel) > 0) corpo.append(cartaoPontos(ctx));
+        const livros = await blocoLivros(ctx).catch(() => null);
+        if (livros) corpo.append(livros);
+      }
       const grupos = []; const por = {};
       cfg.lista.forEach((h) => { const k = h.categoria || 'Outras'; if (!por[k]) { por[k] = []; grupos.push(k); } por[k].push(h); });
       grupos.forEach((g) => {

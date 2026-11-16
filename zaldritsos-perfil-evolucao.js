@@ -174,73 +174,122 @@
   const botao = (txt, cls) => { const b = el('button', 'zp-btn' + (cls ? ' ' + cls : ''), txt); b.type = 'button'; return b; };
   const pendentes = {}; // por tipo de pedido: evita criar outro recibo se o primeiro já foi postado
 
-  /* ---------- Pontos de atributo ---------- */
-  function cartaoPontos(ctx) {
-    const { pers, regras, topico } = ctx;
+  /* ---------- Pontos de atributo: botão "!" no quadro do Nível + pop-up ---------- */
+  const calcLivres = (pers, regras) => {
     const nivel = nivelGeral(Number(pers.xp) || 0, regras);
-    const livres = Math.max(0, Number(regras.pontosPorNivel) * (nivel - 1) - (Number(pers.pontosGastos) || 0));
-    const max = Number(regras.atributoMax) || 10;
-    const sec = el('section', 'zp-evo-bloco'); sec.append(el('h3', 'zp-hab-grupo-nome', 'Pontos de atributo'));
-    const caixa = el('div', 'zp-hab zp-evo-caixa');
+    return Math.max(0, Number(regras.pontosPorNivel) * (nivel - 1) - (Number(pers.pontosGastos) || 0));
+  };
+  let popupAtual = null;
+  function fecharPopup(devolverFoco) {
+    if (!popupAtual) return;
+    const { pop, ancora, aoFora, aoEsc, reposicionar } = popupAtual;
+    document.removeEventListener('mousedown', aoFora, true); document.removeEventListener('keydown', aoEsc, true);
+    window.removeEventListener('resize', reposicionar); window.removeEventListener('scroll', reposicionar, true);
+    pop.remove(); ancora.setAttribute('aria-expanded', 'false');
+    popupAtual = null;
+    if (devolverFoco) ancora.focus();
+  }
+  function abrirPopupPontos(ancora, topico) {
+    if (popupAtual) { fecharPopup(true); return; }
+    const pop = el('div', 'zp zp-pop'); pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Distribuir pontos de atributo');
+    const z = document.getElementById('z-profile');
+    const cor = z ? getComputedStyle(z).getPropertyValue('--group-color').trim() : '';
+    if (cor) pop.style.setProperty('--group-color', cor); // o pop-up fica fora do perfil: leva a cor do grupo junto
+    const corpo = el('div', 'zp-pop-corpo'); pop.append(corpo); document.body.append(pop);
+    ancora.setAttribute('aria-expanded', 'true');
+    const reposicionar = () => {
+      const r = ancora.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+      const x = Math.min(Math.max(8, r.right - w), innerWidth - w - 8);
+      let y = r.bottom + 10; if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 10);
+      pop.style.left = x + 'px'; pop.style.top = y + 'px';
+    };
+    const aoFora = (e) => { if (!pop.contains(e.target) && !ancora.contains(e.target)) fecharPopup(false); };
+    const aoEsc = (e) => { if (e.key === 'Escape') { e.preventDefault(); fecharPopup(true); } };
+    popupAtual = { pop, ancora, aoFora, aoEsc, reposicionar };
+    document.addEventListener('mousedown', aoFora, true); document.addEventListener('keydown', aoEsc, true);
+    window.addEventListener('resize', reposicionar); window.addEventListener('scroll', reposicionar, true);
+    corpo.append(el('p', 'zp-vazio', 'Carregando…')); reposicionar();
+    montarEditorPontos(corpo, topico, reposicionar).catch(() => { corpo.textContent = ''; corpo.append(el('p', 'zp-vazio', 'Não foi possível carregar seus pontos agora.')); reposicionar(); });
+  }
+  async function montarEditorPontos(corpo, topico, reposicionar) {
+    const [regras, pers] = await Promise.all([fsLer('ficha_config/regras', 10), fsLer('personagens/' + idPerfil())]);
+    corpo.textContent = '';
+    if (!regras || !pers) { corpo.append(el('p', 'zp-vazio', 'Não foi possível carregar seus pontos agora.')); reposicionar(); return; }
+    const livres = calcLivres(pers, regras), max = Number(regras.atributoMax) || 10;
     const topo = el('div', 'zp-hab-topo');
     topo.append(el('h4', 'zp-hab-nome', livres + (livres === 1 ? ' ponto livre' : ' pontos livres')), el('small', 'zp-hab-info', regras.pontosPorNivel + ' por nível'));
-    caixa.append(topo); sec.append(caixa);
-    if (!topico) { caixa.append(el('small', 'zp-hab-info', 'A distribuição de pontos ainda não foi ativada pela administração.')); return sec; }
-    if (!livres) { caixa.append(el('small', 'zp-hab-info', 'Nada para distribuir agora. Você ganha novos pontos ao subir de nível.')); return sec; }
+    corpo.append(topo);
+    if (!livres) { corpo.append(el('small', 'zp-hab-info', 'Nada para distribuir agora. Você ganha novos pontos ao subir de nível.')); reposicionar(); return; }
     const status = el('p', 'zp-evo-status'); status.setAttribute('aria-live', 'polite');
-    const abrir = botao('Distribuir pontos'); caixa.append(abrir, status);
-    abrir.addEventListener('click', () => {
-      abrir.remove();
-      const add = {}; NOMES_ATRIB.forEach((a) => { add[a] = 0; });
-      const total = () => NOMES_ATRIB.reduce((s, a) => s + add[a], 0);
-      const lista = el('div', 'zp-evo-lista'); const linhas = {};
-      NOMES_ATRIB.forEach((a) => {
-        const base = Number((pers.atributos || {})[a]) || 0;
-        const l = el('div', 'zp-evo-linha');
-        const menos = botao('−', 'zp-btn-mini'), mais = botao('+', 'zp-btn-mini'), val = el('span', 'zp-evo-valor');
-        menos.setAttribute('aria-label', 'Tirar ponto de ' + ATRIB[a]); mais.setAttribute('aria-label', 'Pôr ponto em ' + ATRIB[a]);
-        l.append(el('span', 'zp-evo-nome', ATRIB[a]), menos, val, mais);
-        const atualiza = () => {
-          val.textContent = (base + add[a]) + (add[a] ? ' (+' + add[a] + ')' : '');
-          menos.disabled = add[a] === 0; mais.disabled = total() >= livres || base + add[a] >= max;
-          confirmar.disabled = total() === 0 || busy; resta.textContent = (livres - total()) + ' livres';
-        };
-        linhas[a] = atualiza;
-        menos.addEventListener('click', () => { if (add[a] > 0) { add[a]--; todos(); } });
-        mais.addEventListener('click', () => { if (total() < livres && base + add[a] < max) { add[a]++; todos(); } });
-        lista.append(l);
-      });
-      const todos = () => NOMES_ATRIB.forEach((a) => linhas[a]());
-      const resta = el('small', 'zp-hab-info');
-      const aviso = el('small', 'zp-hab-info', 'Depois de confirmar, a distribuição não pode ser desfeita (só a administração refaz).');
-      const confirmar = botao('Confirmar distribuição'), cancelar = botao('Cancelar', 'zp-btn-sec');
-      let busy = false;
-      const acoes = el('div', 'zp-evo-acoes'); acoes.append(confirmar, cancelar, resta);
-      caixa.insertBefore(lista, status); caixa.insertBefore(aviso, status); caixa.insertBefore(acoes, status); todos();
-      cancelar.addEventListener('click', () => ctx.redesenhar());
-      confirmar.addEventListener('click', async () => {
-        if (busy || !total()) return;
-        busy = true; todos(); cancelar.disabled = true;
-        const dist = NOMES_ATRIB.filter((a) => add[a] > 0).map((a) => a + ':' + add[a]).join(',');
-        const pend = pendentes.pontos && pendentes.pontos.dados === 'v1|pontos|' + dist ? pendentes.pontos
-          : (pendentes.pontos = { acao: 'pontos', id: novoIdRecibo(), topico, subtitulo: 'Pontos de atributo', dados: 'v1|pontos|' + dist,
-            linhas: NOMES_ATRIB.filter((a) => add[a] > 0).map((a) => ATRIB[a] + ' +' + add[a]) });
-        status.className = 'zp-evo-status';
-        try {
-          const res = await executarRecibo(pend, (t) => { status.textContent = t; });
-          if (res && res.status === 'aprovada') {
-            delete pendentes.pontos; status.className = 'zp-evo-status zp-evo-ok';
-            status.textContent = 'Pontos distribuídos! Restam ' + res.pontosLivres + '. Atualizando o perfil…';
-            setTimeout(() => location.reload(), 1400); return;
-          }
-          if (res && (res.status === 'recusada' || res.status === 'invalido')) delete pendentes.pontos;
-          status.className = 'zp-evo-status zp-evo-erro';
-          status.textContent = (res && res.motivo) || 'Não foi possível concluir agora. Tente de novo.';
-        } catch (e) { status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (e && e.message) || 'Não foi possível concluir agora. Tente de novo.'; }
-        busy = false; cancelar.disabled = false; todos();
-      });
+    const add = {}; NOMES_ATRIB.forEach((a) => { add[a] = 0; });
+    const total = () => NOMES_ATRIB.reduce((s, a) => s + add[a], 0);
+    const lista = el('div', 'zp-evo-lista'); const linhas = {};
+    let busy = false;
+    const resta = el('small', 'zp-hab-info');
+    const confirmar = botao('Confirmar distribuição'), cancelar = botao('Cancelar', 'zp-btn-sec');
+    const todos = () => NOMES_ATRIB.forEach((a) => linhas[a]());
+    NOMES_ATRIB.forEach((a) => {
+      const base = Number((pers.atributos || {})[a]) || 0;
+      const l = el('div', 'zp-evo-linha');
+      const menos = botao('−', 'zp-btn-mini'), mais = botao('+', 'zp-btn-mini'), val = el('span', 'zp-evo-valor');
+      menos.setAttribute('aria-label', 'Tirar ponto de ' + ATRIB[a]); mais.setAttribute('aria-label', 'Pôr ponto em ' + ATRIB[a]);
+      l.append(el('span', 'zp-evo-nome', ATRIB[a]), menos, val, mais);
+      linhas[a] = () => {
+        val.textContent = (base + add[a]) + (add[a] ? ' (+' + add[a] + ')' : '');
+        menos.disabled = busy || add[a] === 0; mais.disabled = busy || total() >= livres || base + add[a] >= max;
+        confirmar.disabled = total() === 0 || busy; resta.textContent = (livres - total()) + ' livres';
+      };
+      menos.addEventListener('click', () => { if (add[a] > 0) { add[a]--; todos(); } });
+      mais.addEventListener('click', () => { if (total() < livres && base + add[a] < max) { add[a]++; todos(); } });
+      lista.append(l);
     });
-    return sec;
+    const aviso = el('small', 'zp-hab-info', 'Depois de confirmar, a distribuição não pode ser desfeita.');
+    const acoes = el('div', 'zp-evo-acoes'); acoes.append(confirmar, cancelar, resta);
+    corpo.append(lista, aviso, acoes, status); todos(); reposicionar();
+    cancelar.addEventListener('click', () => fecharPopup(true));
+    confirmar.addEventListener('click', async () => {
+      if (busy || !total()) return;
+      busy = true; todos(); cancelar.disabled = true;
+      const dist = NOMES_ATRIB.filter((a) => add[a] > 0).map((a) => a + ':' + add[a]).join(',');
+      const pend = pendentes.pontos && pendentes.pontos.dados === 'v1|pontos|' + dist ? pendentes.pontos
+        : (pendentes.pontos = { acao: 'pontos', id: novoIdRecibo(), topico, subtitulo: 'Pontos de atributo', dados: 'v1|pontos|' + dist,
+          linhas: NOMES_ATRIB.filter((a) => add[a] > 0).map((a) => ATRIB[a] + ' +' + add[a]) });
+      status.className = 'zp-evo-status';
+      try {
+        const res = await executarRecibo(pend, (t) => { status.textContent = t; reposicionar(); });
+        if (res && res.status === 'aprovada') {
+          delete pendentes.pontos; status.className = 'zp-evo-status zp-evo-ok';
+          status.textContent = 'Pontos distribuídos! Restam ' + res.pontosLivres + '. Atualizando o perfil…'; reposicionar();
+          setTimeout(() => location.reload(), 1400); return;
+        }
+        if (res && (res.status === 'recusada' || res.status === 'invalido')) delete pendentes.pontos;
+        status.className = 'zp-evo-status zp-evo-erro';
+        status.textContent = (res && res.motivo) || 'Não foi possível concluir agora. Tente de novo.';
+      } catch (e) { status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (e && e.message) || 'Não foi possível concluir agora. Tente de novo.'; }
+      busy = false; cancelar.disabled = false; todos(); reposicionar();
+    });
+  }
+  let badgeOcupado = false;
+  /** Mostra o "!" no canto do quadro do Nível enquanto houver pontos para distribuir (só para o dono do perfil). */
+  async function badgePontos() {
+    if (badgeOcupado || !ehDono()) return;
+    const caixa = document.querySelector('.zup-level'); if (!caixa) return;
+    badgeOcupado = true;
+    try {
+      const [regras, pers] = await Promise.all([fsLer('ficha_config/regras', 10), fsLer('personagens/' + idPerfil())]);
+      const topico = regras && Number(regras.topicoRecibos) > 0 ? String(Number(regras.topicoRecibos)) : '';
+      const livres = topico && pers && Number(regras.pontosPorNivel) > 0 ? calcLivres(pers, regras) : 0;
+      let b = caixa.querySelector('.zp-pontos-badge');
+      if (!livres) { if (b) b.remove(); return; }
+      const texto = 'Você tem ' + livres + (livres === 1 ? ' ponto de atributo para distribuir' : ' pontos de atributo para distribuir');
+      if (!b) {
+        b = el('button', 'zp-pontos-badge', '!'); b.type = 'button';
+        b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');
+        b.addEventListener('click', (e) => { e.stopPropagation(); abrirPopupPontos(b, topico); });
+        caixa.append(b);
+      }
+      b.setAttribute('aria-label', texto); b.title = texto;
+    } finally { badgeOcupado = false; }
   }
 
   /* ---------- Livros no inventário ---------- */
@@ -294,31 +343,70 @@
     return sec;
   }
 
-  async function desenharHabilidades(corpo) {
+  // Ícones do menu lateral: os mesmos do perfil (inventário e atributos), para ficar tudo padronizado.
+  const ICONE_CAT = { combate: 'weapons', oficio: 'gauntlet', social: 'attribute-domino-mask', saber: 'attribute-brain', sobrevivencia: 'attribute-oak' };
+  const iconeCat = (nome) => 'var(--z-icon-' + (ICONE_CAT[norm(nome)] || 'misc') + ')';
+  const slug = (s) => norm(s).replace(/[^a-z0-9]+/g, '-');
+
+  /** Desenha o menu lateral, os filtros e os cartões conforme a categoria e o filtro escolhidos. */
+  function renderizarHabilidades(L) {
+    const { cfg, regras, pers, estado } = L.dados;
+    const aprendida = (h) => Number((pers.habilidades || {})[h.id]) > 0;
+    const cats = []; cfg.lista.forEach((h) => { const c = h.categoria || 'Outras'; if (!cats.includes(c)) cats.push(c); });
+    if (estado.cat !== 'todos' && !cats.some((c) => slug(c) === estado.cat)) estado.cat = 'todos';
+    // menu lateral (mesmo visual do inventário)
+    L.trilho.textContent = '';
+    [{ id: 'todos', nome: 'Todos', icone: 'var(--z-icon-misc)' }].concat(cats.map((c) => ({ id: slug(c), nome: c, icone: iconeCat(c) }))).forEach((c) => {
+      const b = el('button', 'zui-category'); b.type = 'button';
+      b.setAttribute('aria-label', c.nome); b.setAttribute('data-label', c.nome); b.setAttribute('aria-pressed', String(estado.cat === c.id));
+      const ic = el('span', 'zui-icon'); ic.style.setProperty('--inventory-icon', c.icone); ic.setAttribute('aria-hidden', 'true'); b.append(ic);
+      b.addEventListener('click', () => { estado.cat = c.id; renderizarHabilidades(L); });
+      L.trilho.append(b);
+    });
+    const naCategoria = cfg.lista.filter((h) => estado.cat === 'todos' || slug(h.categoria || 'Outras') === estado.cat);
+    const nApr = naCategoria.filter(aprendida).length, nNao = naCategoria.length - nApr;
+    // filtros: aprendidas (padrão) e não aprendidas
+    L.filtros.textContent = '';
+    [['aprendidas', 'Aprendidas', nApr], ['nao', 'Não aprendidas', nNao]].forEach(([id, rotulo, n]) => {
+      const b = botao(rotulo + ' (' + n + ')', 'zp-btn-sec'); b.setAttribute('aria-pressed', String(estado.filtro === id));
+      b.addEventListener('click', () => { estado.filtro = id; renderizarHabilidades(L); });
+      L.filtros.append(b);
+    });
+    // corpo: livros do dono (se houver) e os cartões
+    L.corpo.textContent = '';
+    if (L.livros) L.corpo.append(L.livros);
+    const mostrar = naCategoria.filter((h) => (estado.filtro === 'aprendidas') === aprendida(h));
+    if (!mostrar.length) {
+      const msg = estado.filtro === 'aprendidas'
+        ? 'Você ainda não aprendeu nenhuma habilidade' + (estado.cat === 'todos' ? '' : ' nesta categoria') + '. Veja as não aprendidas ou leia um livro.'
+        : 'Você já aprendeu todas as habilidades' + (estado.cat === 'todos' ? '' : ' desta categoria') + '.';
+      L.corpo.append(el('p', 'zp-vazio', msg)); return;
+    }
+    const grupos = estado.cat === 'todos' ? cats.map((c) => ({ nome: c, hs: mostrar.filter((h) => (h.categoria || 'Outras') === c) })).filter((g) => g.hs.length) : [{ nome: '', hs: mostrar }];
+    grupos.forEach((g) => {
+      const sec = el('section', 'zp-hab-grupo'); if (g.nome) sec.append(el('h3', 'zp-hab-grupo-nome', g.nome));
+      const grade = el('div', 'zp-hab-grade');
+      // entre as não aprendidas, as que já podem ser aprendidas vêm primeiro
+      const ordem = (h) => (aprendida(h) ? 0 : requisitos(h, pers, cfg, regras).every((r) => r.ok) ? 1 : 2);
+      g.hs.map((h, i) => ({ h, i })).sort((a, b) => ordem(a.h) - ordem(b.h) || a.i - b.i).forEach((x) => grade.append(cartao(x.h, pers, cfg, regras)));
+      sec.append(grade); L.corpo.append(sec);
+    });
+  }
+  async function desenharHabilidades(L) {
     const id = idPerfil();
-    corpo.textContent = '';
+    L.corpo.textContent = ''; L.trilho.textContent = ''; L.filtros.textContent = '';
     try {
       const [cfg, regras, pers] = await Promise.all([fsLer('ficha_config/habilidades', 10), fsLer('ficha_config/regras', 10), id ? fsLer('personagens/' + id) : null]);
-      if (!cfg || !(cfg.lista || []).length) { corpo.append(el('p', 'zp-vazio', 'Nenhuma habilidade cadastrada ainda.')); return; }
-      const p = pers || {};
-      // Só o dono do perfil vê pontos e livros (quem manda de verdade é o servidor, que confere o autor do recibo).
+      if (!cfg || !(cfg.lista || []).length) { L.corpo.append(el('p', 'zp-vazio', 'Nenhuma habilidade cadastrada ainda.')); return; }
+      L.dados = { cfg, regras: regras || {}, pers: pers || {}, estado: (L.dados && L.dados.estado) || { cat: 'todos', filtro: 'aprendidas' } };
+      // Só o dono do perfil vê os livros (quem manda de verdade é o servidor, que confere o autor do recibo).
+      L.livros = null;
       if (ehDono() && pers && regras) {
-        const ctx = { pers: p, cfg, regras, topico: Number(regras.topicoRecibos) > 0 ? String(Number(regras.topicoRecibos)) : '', redesenhar: () => desenharHabilidades(corpo) };
-        if (Number(regras.pontosPorNivel) > 0) corpo.append(cartaoPontos(ctx));
-        const livros = await blocoLivros(ctx).catch(() => null);
-        if (livros) corpo.append(livros);
+        const ctx = { pers, cfg, regras, topico: Number(regras.topicoRecibos) > 0 ? String(Number(regras.topicoRecibos)) : '' };
+        L.livros = await blocoLivros(ctx).catch(() => null);
       }
-      const grupos = []; const por = {};
-      cfg.lista.forEach((h) => { const k = h.categoria || 'Outras'; if (!por[k]) { por[k] = []; grupos.push(k); } por[k].push(h); });
-      grupos.forEach((g) => {
-        const sec = el('section', 'zp-hab-grupo'); sec.append(el('h3', 'zp-hab-grupo-nome', g));
-        const grade = el('div', 'zp-hab-grade');
-        // aprendidas primeiro, depois as que já podem ser aprendidas, depois as bloqueadas
-        const ordem = (h) => (Number((p.habilidades || {})[h.id]) > 0 ? 0 : requisitos(h, p, cfg, regras).every((r) => r.ok) ? 1 : 2);
-        por[g].map((h, i) => ({ h, i })).sort((a, b) => ordem(a.h) - ordem(b.h) || a.i - b.i).forEach((x) => grade.append(cartao(x.h, p, cfg, regras)));
-        sec.append(grade); corpo.append(sec);
-      });
-    } catch (_) { corpo.append(el('p', 'zp-vazio', 'Não foi possível carregar as habilidades agora.')); }
+      renderizarHabilidades(L);
+    } catch (_) { L.corpo.append(el('p', 'zp-vazio', 'Não foi possível carregar as habilidades agora.')); }
   }
   function montarAba() {
     const existente = document.getElementById('panel-skills');
@@ -333,8 +421,12 @@
     const painel = el('section', 'zup-text-panel'); painel.id = 'panel-skills';
     painel.setAttribute('role', 'tabpanel'); painel.setAttribute('aria-labelledby', 'tab-skills'); painel.tabIndex = 0; painel.hidden = true;
     const cab = el('header', 'zup-tab-heading'); const d = el('div'); d.append(el('h2', null, 'Habilidades'), el('p', null, 'Estrelas, treino e requisitos do personagem.')); cab.append(d);
-    const view = el('div', 'zp zp-view zp-habilidades'); view.style.setProperty('--zp-altura', '420px');
-    const corpo = el('div', 'zp-body'); view.append(corpo);
+    const view = el('div', 'zp zp-view zp-habilidades'); view.style.setProperty('--zp-altura', '470px');
+    const trilho = el('nav', 'zui-categories zp-hab-trilho'); trilho.setAttribute('aria-label', 'Categorias de habilidades');
+    const principal = el('div', 'zp-hab-main'); const filtros = el('div', 'zp-hab-filtros'); const corpo = el('div', 'zp-body');
+    principal.append(filtros, corpo);
+    const layout = el('div', 'zp-hab-layout'); layout.append(trilho, principal); view.append(layout);
+    const L = { trilho, filtros, corpo, dados: null, livros: null };
     painel.append(cab, view);
     painelInv.after(painel);
 
@@ -342,7 +434,7 @@
     btn.addEventListener('click', () => {
       abas().forEach((t) => { const on = t === btn; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; });
       document.querySelectorAll('#z-profile [role=tabpanel]').forEach((p) => { p.hidden = p !== painel; });
-      desenharHabilidades(corpo);
+      desenharHabilidades(L);
     });
     btn.addEventListener('keydown', (e) => {
       const lista = abas(), i = lista.indexOf(btn);
@@ -355,7 +447,7 @@
       new MutationObserver(() => { if (t.getAttribute('aria-selected') === 'true') { painel.hidden = true; btn.setAttribute('aria-selected', 'false'); btn.tabIndex = -1; } })
         .observe(t, { attributes: true, attributeFilter: ['aria-selected'] });
     });
-    desenharHabilidades(corpo);
+    desenharHabilidades(L);
     return painel;
   }
 
@@ -429,6 +521,7 @@
   function aplicar() {
     try { montarAba(); } catch (_) { /* a aba é opcional */ }
     try { vitalidade(); } catch (_) { /* barra opcional */ }
+    badgePontos().catch(() => { /* botão opcional */ });
     ferimentos().catch(() => { /* lista opcional */ });
   }
   function comecar() {

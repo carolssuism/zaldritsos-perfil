@@ -28,7 +28,15 @@
     return null;
   };
   const fsCampos = (f) => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, fsValor(v)]));
-  async function fsLer(caminho, cacheMin) {
+  const emVoo = new Map(); // pedidos iguais ao mesmo tempo (sem cache) compartilham a mesma resposta
+  function fsLer(caminho, cacheMin) {
+    if (cacheMin) return fsLerBruto(caminho, cacheMin);
+    if (emVoo.has(caminho)) return emVoo.get(caminho);
+    const p = fsLerBruto(caminho, cacheMin).finally(() => { emVoo.delete(caminho); });
+    emVoo.set(caminho, p);
+    return p;
+  }
+  async function fsLerBruto(caminho, cacheMin) {
     const chave = 'zp-fs:' + caminho;
     if (cacheMin) {
       try { const c = JSON.parse(sessionStorage.getItem(chave) || 'null'); if (c && c.ate > Date.now()) return c.dados; } catch (_) { /* sem cache */ }
@@ -144,9 +152,16 @@
     for (const [k, v] of campos) if (typeof v === 'string') corpo.append(k, v);
     try {
       const r = await fetch('/post', { method: 'POST', credentials: 'same-origin', body: corpo });
-      if (r.ok) { const pag = new DOMParser().parseFromString(await r.text(), 'text/html'); const e = pag.querySelector('p.error, .error-message'); return e ? e.textContent.trim() : ''; }
+      if (r.ok) {
+        const texto = await r.text();
+        const pag = new DOMParser().parseFromString(texto, 'text/html'); const e = pag.querySelector('p.error, .error-message');
+        // a página "Informação" do fórum redireciona para /viewtopic?t=<tópico>...#<número da postagem nova>
+        const t = (form.querySelector('input[name="t"]') || {}).value || '';
+        const m = /^\d+$/.test(t) ? new RegExp('url=/viewtopic\\?t=' + t + '(?!\\d)[^"\'#]*#(\\d+)').exec(texto) : null;
+        return { erro: e ? e.textContent.trim() : '', post: m ? m[1] : '' };
+      }
     } catch (_) { /* a confirmação é feita ao procurar a postagem */ }
-    return '';
+    return { erro: '', post: '' };
   }
   async function acharPostagem(topico, idRecibo) {
     for (let i = 0; i < 4; i++) {
@@ -160,10 +175,11 @@
   }
   async function postarRecibo(topico, mensagem, idRecibo, formPronto) {
     const form = formPronto || await abrirFormResposta(topico);
-    const erroForum = await enviarResposta(form, mensagem);
-    const post = await acharPostagem(topico, idRecibo);
-    if (!post) throw new Error(erroForum || 'O fórum não confirmou a publicação do recibo. Confira o tópico antes de tentar novamente.');
-    return post;
+    const resp = await enviarResposta(form, mensagem);
+    const daResposta = !!resp.post;
+    const post = resp.post || await acharPostagem(topico, idRecibo);
+    if (!post) throw new Error(resp.erro || 'O fórum não confirmou a publicação do recibo. Confira o tópico antes de tentar novamente.');
+    return { post, daResposta };
   }
   async function confirmarNoServidor(acao, post, aoStatus) {
     let ultimo = null;
@@ -189,10 +205,18 @@
   async function executarRecibo(pend, aoStatus) {
     if (!pend.post) {
       aoStatus('Registrando no fórum…');
-      pend.post = await postarRecibo(pend.topico, montarRecibo(pend.id, pend.subtitulo, pend.linhas, pend.dados), pend.id, await formPronto(pend));
+      const r = await postarRecibo(pend.topico, montarRecibo(pend.id, pend.subtitulo, pend.linhas, pend.dados), pend.id, await formPronto(pend));
+      pend.post = r.post; pend.postDaResposta = r.daResposta;
     }
     aoStatus('Conferindo no servidor…');
-    return confirmarNoServidor(pend.acao, pend.post, aoStatus);
+    const res = await confirmarNoServidor(pend.acao, pend.post, aoStatus);
+    // Se o número tirado da resposta do fórum estivesse errado, o servidor diz que não é o recibo: aí procura do jeito antigo.
+    if (res && res.status === 'invalido' && pend.postDaResposta) {
+      pend.postDaResposta = false;
+      const real = await acharPostagem(pend.topico, pend.id);
+      if (real && real !== pend.post) { pend.post = real; return confirmarNoServidor(pend.acao, pend.post, aoStatus); }
+    }
+    return res;
   }
   const botao = (txt, cls) => { const b = el('button', 'zp-btn' + (cls ? ' ' + cls : ''), txt); b.type = 'button'; return b; };
   const pendentes = {}; // por tipo de pedido: evita criar outro recibo se o primeiro já foi postado

@@ -98,6 +98,17 @@
   const WEBAPP = 'https://script.google.com/macros/s/AKfycbxcwXY-FCPE9wuSGda-n0sCgrRsLZkym8GZy40jc-eWrR_gcou__mpWYTGZJLmLdXBw/exec';
   const NOMES_ATRIB = ['carisma', 'destreza', 'forca', 'sabedoria', 'inteligencia'];
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Depois de uma leitura aprovada: recarrega só o inventário do tema e redesenha as partes desta ficha (sem F5).
+  const atualizadores = [];
+  async function atualizarEvolucao() {
+    try { if (window.ZaldritsosInventory && typeof window.ZaldritsosInventory.recarregar === 'function') await window.ZaldritsosInventory.recarregar(); } catch (_) { /* o tema segue como estava */ }
+    for (const f of atualizadores) { try { await f(); } catch (_) { /* cada parte é opcional */ } }
+  }
+  function aviso(texto) {
+    const n = document.createElement('div'); n.setAttribute('role', 'status');
+    n.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:99999;max-width:90vw;padding:12px 20px;background:#090a0c;color:var(--group-color,#e1bc66);border:1px solid var(--group-color,#e1bc66);font:600 11px/1.4 Montserrat,Arial,sans-serif;letter-spacing:1.2px;text-transform:uppercase;box-shadow:0 8px 30px rgba(0,0,0,.5)';
+    n.textContent = texto; document.body.append(n); setTimeout(() => n.remove(), 6000);
+  }
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const usuarioLogado = () => { const u = window._userdata; const id = u && Number(u.session_logged_in) ? Number(u.user_id) : 0; return id > 0 ? { id: String(id), nome: u.username || ('/u' + id) } : null; };
   const ehDono = () => { const u = usuarioLogado(); return !!u && u.id === idPerfil(); };
@@ -147,8 +158,8 @@
     }
     return null;
   }
-  async function postarRecibo(topico, mensagem, idRecibo) {
-    const form = await abrirFormResposta(topico);
+  async function postarRecibo(topico, mensagem, idRecibo, formPronto) {
+    const form = formPronto || await abrirFormResposta(topico);
     const erroForum = await enviarResposta(form, mensagem);
     const post = await acharPostagem(topico, idRecibo);
     if (!post) throw new Error(erroForum || 'O fórum não confirmou a publicação do recibo. Confira o tópico antes de tentar novamente.');
@@ -167,11 +178,18 @@
     }
     return ultimo;
   }
+  /** Formulário aberto antes (enquanto a pessoa confirma): vale por 90 s e só uma vez; se falhar ou vencer, abre de novo. */
+  async function formPronto(pend) {
+    if (!pend.formP) return null;
+    const p = pend.formP; pend.formP = null;
+    if (Date.now() - (pend.formQuando || 0) > 90000) return null;
+    try { return await p; } catch (_) { return null; }
+  }
   /** Posta o recibo (uma vez só, mesmo se o servidor demorar) e confirma. pend guarda a postagem para "Tentar de novo". */
   async function executarRecibo(pend, aoStatus) {
     if (!pend.post) {
       aoStatus('Registrando no fórum…');
-      pend.post = await postarRecibo(pend.topico, montarRecibo(pend.id, pend.subtitulo, pend.linhas, pend.dados), pend.id);
+      pend.post = await postarRecibo(pend.topico, montarRecibo(pend.id, pend.subtitulo, pend.linhas, pend.dados), pend.id, await formPronto(pend));
     }
     aoStatus('Conferindo no servidor…');
     return confirmarNoServidor(pend.acao, pend.post, aoStatus);
@@ -338,17 +356,22 @@
   /** Botão "Ler livro" (com confirmação) — o mesmo na aba Habilidades e no Inventário. */
   function botaoLerLivro(topico, id, item, hab, status) {
     const ler = botao('Ler livro'); let armado = false, busy = false, timer = null;
+    const obterPend = () => pendentes['livro:' + id] || (pendentes['livro:' + id] = { acao: 'livro', id: novoIdRecibo(), topico, subtitulo: 'Leitura de livro', dados: 'v1|livro|' + id, linhas: ['Livro: ' + (item.nome || id), 'Habilidade: ' + hab.nome] });
+    const prepararFormulario = () => { const p = obterPend(); if (!p.post && !p.formP) { p.formQuando = Date.now(); p.formP = abrirFormResposta(topico); p.formP.catch(() => { /* na hora de postar, abre de novo */ }); } };
     ler.addEventListener('click', async () => {
       if (busy) return;
-      if (!armado) { armado = true; ler.textContent = 'Confirmar leitura?'; timer = setTimeout(() => { armado = false; ler.textContent = 'Ler livro'; }, 4000); return; }
+      if (!armado) { armado = true; prepararFormulario(); ler.textContent = 'Confirmar leitura?'; timer = setTimeout(() => { armado = false; ler.textContent = 'Ler livro'; }, 4000); return; }
       clearTimeout(timer); busy = true; ler.disabled = true; status.className = 'zp-evo-status';
-      const pend = pendentes['livro:' + id] || (pendentes['livro:' + id] = { acao: 'livro', id: novoIdRecibo(), topico, subtitulo: 'Leitura de livro', dados: 'v1|livro|' + id, linhas: ['Livro: ' + (item.nome || id), 'Habilidade: ' + hab.nome] });
+      const pend = obterPend();
       try {
         const res = await executarRecibo(pend, (x) => { status.textContent = x; });
         if (res && res.status === 'aprovada') {
           delete pendentes['livro:' + id]; status.className = 'zp-evo-status zp-evo-ok';
-          status.textContent = (res.aprendeuAgora ? 'Você aprendeu ' + hab.nome + '!' : hab.nome + ' evoluiu!') + ' +' + res.ganho + ' XP. Atualizando…';
-          setTimeout(() => location.reload(), 1400); return;
+          const msg = (res.aprendeuAgora ? 'Você aprendeu ' + hab.nome + '!' : hab.nome + ' evoluiu!') + ' +' + res.ganho + ' XP.';
+          status.textContent = msg + ' Atualizando…';
+          aviso(msg);
+          await atualizarEvolucao();
+          return;
         }
         if (res && (res.status === 'recusada' || res.status === 'invalido')) delete pendentes['livro:' + id];
         status.className = 'zp-evo-status zp-evo-erro'; status.textContent = (res && res.motivo) || 'Não foi possível concluir agora. Tente de novo.';
@@ -418,6 +441,7 @@
       } catch (_) { /* silencioso */ } finally { ocupado = false; ligar(); }
     }
     ligar(); aplicar();
+    atualizadores.push(async () => { ctxP = null; await aplicar(); });
   }
 
   // Ícones do menu lateral: os mesmos do perfil (inventário e atributos), para ficar tudo padronizado.
@@ -469,9 +493,9 @@
       sec.append(grade); L.corpo.append(sec);
     });
   }
-  async function desenharHabilidades(L) {
+  async function desenharHabilidades(L, silencioso) {
     const id = idPerfil();
-    L.corpo.textContent = ''; L.trilho.textContent = ''; L.filtros.textContent = '';
+    if (!silencioso) { L.corpo.textContent = ''; L.trilho.textContent = ''; L.filtros.textContent = ''; }
     try {
       const [cfg, regras, pers] = await Promise.all([fsLer('ficha_config/habilidades', 10), fsLer('ficha_config/regras', 10), id ? fsLer('personagens/' + id) : null]);
       if (!cfg || !(cfg.lista || []).length) { L.corpo.append(el('p', 'zp-vazio', 'Nenhuma habilidade cadastrada ainda.')); return; }
@@ -505,6 +529,7 @@
     principal.append(corpo);
     const layout = el('div', 'zp-hab-layout'); layout.append(trilho, principal); view.append(layout);
     const L = { trilho, filtros, corpo, dados: null, livros: null };
+    atualizadores.push(() => desenharHabilidades(L, true));
     painel.append(cab, view);
     painelInv.after(painel);
 

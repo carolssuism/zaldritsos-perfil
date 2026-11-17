@@ -262,3 +262,8 @@
 .zp-ferida strong { font-weight: 600; color: var(--cor-texto, #dcded9); }
 .zp-ferida-ef { color: var(--cor-destaque-claro, #cc5258); }
 .zp-ferida-ate { font-style: normal; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--cor-texto-discreto, #94898c); }
+
+/* Filtro da aba Habilidades (fora do .zp: o tema zerava borda e fundo dos botões, por isso o seletor forte) */
+#z-profile .zp-hab-filtros .zp-btn { padding: 8px 14px !important; background: transparent !important; color: var(--cor-texto-suave, #bfb1b4) !important; border: 1px solid color-mix(in srgb, #969490 24%, transparent) !important; border-radius: 0 !important; font: 600 10px/1 Montserrat, Arial, sans-serif !important; letter-spacing: 1.2px !important; text-transform: uppercase !important; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+#z-profile .zp-hab-filtros .zp-btn[aria-pressed="true"] { color: var(--group-color, #e1bc66) !important; border-color: var(--group-color, #e1bc66) !important; background: color-mix(in srgb, var(--group-color, #e1bc66) 14%, transparent) !important; }
+#z-profile .zp-hab-filtros .zp-btn:hover, #z-profile .zp-hab-filtros .zp-btn:focus-visible { background: var(--group-color, #e1bc66) !important; color: #090a0c !important; border-color: var(--group-color, #e1bc66) !important; outline: none; }

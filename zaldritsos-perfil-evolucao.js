@@ -373,7 +373,11 @@
       livros.set(id, ok); return ok;
     };
     const contexto = () => ctxP || (ctxP = Promise.all([fsLer('ficha_config/habilidades', 10), fsLer('ficha_config/regras', 10), idp ? fsLer('personagens/' + idp) : null]).then(([cfg, regras, pers]) => ({ cfg, regras: regras || {}, pers: pers || {} })).catch(() => null));
-    const obs = new MutationObserver(() => { if (!agendado && !ocupado) { agendado = true; requestAnimationFrame(() => { agendado = false; aplicar(); }); } });
+    const obs = new MutationObserver((registros) => {
+      // Mudanças dentro da própria caixa "Ler livro" (texto do botão, mensagem de status) não pedem refazer a caixa:
+      // refazer apagava o "Confirmar leitura?" e o segundo clique nunca chegava a confirmar.
+      if (registros.every((r) => { const n = r.target && r.target.nodeType === 1 ? r.target : (r.target && r.target.parentElement); return n && n.closest && n.closest('.zp-ler-box'); })) return;
+      if (!agendado && !ocupado) { agendado = true; requestAnimationFrame(() => { agendado = false; aplicar(); }); } });
     const ligar = () => obs.observe(painel, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-pressed'] });
     async function aplicar() {
       if (ocupado) return; ocupado = true; obs.disconnect();
